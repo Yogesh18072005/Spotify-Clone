@@ -18,8 +18,8 @@ const upload = multer({
   limits: { fileSize: 25 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
     const allowed = file.fieldname === "audio"
-      ? /^(audio\\/(mpeg|mp3|wav|ogg|x-wav))$/i.test(file.mimetype)
-      : /^(image\\/(jpeg|png|webp))$/i.test(file.mimetype);
+      ? ["audio/mpeg", "audio/mp3", "audio/wav", "audio/ogg", "audio/x-wav"].includes(file.mimetype)
+      : ["image/jpeg", "image/png", "image/webp"].includes(file.mimetype);
     cb(allowed ? null : new Error("Unsupported file type"), allowed);
   }
 });
