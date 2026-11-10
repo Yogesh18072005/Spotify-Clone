@@ -50,8 +50,14 @@ function App() {
 
   async function loadLibrary() {
     try {
-      const [songData, playlistData] = await Promise.all([request("/songs"), request("/playlists")]);
-      setSongs(songData.songs); setPlaylists(playlistData.playlists);
+      const songData = await request("/songs");
+      setSongs(songData.songs);
+      if (getToken()) {
+        const playlistData = await request("/playlists");
+        setPlaylists(playlistData.playlists);
+      } else {
+        setPlaylists([]);
+      }
     } catch (err) { setNotice(err.message); }
   }
   async function loadProfile() {
@@ -108,8 +114,9 @@ function App() {
   }
   async function uploadSong(event) {
     event.preventDefault();
-    const form = new FormData(event.currentTarget);
-    try { await request("/admin/songs", { method: "POST", body: form }); setShowUpload(false); event.currentTarget.reset(); await loadLibrary(); setNotice("Track uploaded successfully"); }
+    const formElement = event.currentTarget;
+    const form = new FormData(formElement);
+    try { await request("/admin/songs", { method: "POST", body: form }); setShowUpload(false); formElement.reset(); await loadLibrary(); setNotice("Track uploaded successfully"); }
     catch (err) { setNotice(err.message); }
   }
 
