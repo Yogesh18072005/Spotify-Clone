@@ -1,97 +1,118 @@
-# Spotify-Inspired Music Player
+# Melody — Full-Stack Music Library
 
-A responsive, browser-based music player built with **HTML, CSS and vanilla JavaScript**, inspired by Spotify's dark music-player interface. This project was developed as a hands-on web development project while learning frontend fundamentals.
-
-> This is an independent educational project. It is not affiliated with, endorsed by, or connected to Spotify.
-
-## Overview
-
-The application presents a music-library layout with playlist cards, a song list and a persistent playback bar. Playlist information is loaded from local folders, while audio playback is handled by the browser's native `HTMLAudioElement`.
+A responsive music-library application built with the MERN stack: **MongoDB, Express.js, React and Node.js**. The project is an independent educational music player and is not affiliated with Spotify.
 
 ## Features
 
-- Spotify-inspired dark interface with a sidebar, playlist cards and playback bar
-- Dynamically reads MP3 files from playlist folders
-- Loads playlist title and description from each folder's `info.json`
-- Displays playlist cover artwork
-- Play and pause controls
-- Previous and next track navigation
-- Clickable playback progress / seek bar
-- Current playback time and track duration
-- Volume slider and mute toggle
-- Responsive sidebar behaviour for smaller screens
+- Responsive React interface with music discovery and search
+- Node.js + Express REST API
+- MongoDB models for users, songs and playlists
+- User registration and login with password hashing and JWT authentication
+- Personal playlists and liked songs
+- Audio playback controls: play, pause, previous, next, seek and volume
+- Administrator-only music upload with optional cover artwork
+- Protected API routes and rate-limited authentication endpoints
 
-## Tech Stack
+## Technology
 
-- **HTML5** — page structure and audio player interface
-- **CSS3** — layout, styling, responsive media queries and hover states
-- **JavaScript (ES6)** — playlist loading, DOM updates and playback controls
-- **HTML Audio API** — in-browser audio playback
+- Frontend: React, Vite, CSS, Lucide icons
+- Backend: Node.js, Express
+- Database: MongoDB + Mongoose
+- Authentication: JSON Web Tokens + bcrypt
+- File handling: Multer (local uploads for development)
 
-## Project Structure
+## Run locally
+
+### Requirements
+- Node.js 20 or later
+- MongoDB Community Server running locally, or a MongoDB connection URI
+- Git
+
+### 1. Clone and install
+
+```bash
+git clone https://github.com/Yogesh18072005/Spotify-Clone.git
+cd Spotify-Clone
+npm install
+```
+
+### 2. Configure the backend
+
+Copy the example environment file:
+
+PowerShell:
+```powershell
+Copy-Item .env.example .env
+```
+
+Update `.env` with your MongoDB URI and a long random JWT secret. Keep this file private and never commit real credentials.
+
+### 3. Create the administrator account
+
+Set `ADMIN_EMAIL` and `ADMIN_PASSWORD` in `.env`, then run:
+
+```bash
+npm run seed:admin --workspace=server
+```
+
+Use that account to sign in and upload audio files that you own or are licensed to use.
+
+### 4. Start the application
+
+```bash
+npm run dev
+```
+
+- React frontend: http://localhost:5173
+- Express API: http://localhost:5000/api
+- Health check: http://localhost:5000/api/health
+
+## API overview
+
+| Method | Endpoint | Access | Purpose |
+|---|---|---|---|
+| POST | `/api/auth/register` | Public | Create an account |
+| POST | `/api/auth/login` | Public | Sign in |
+| GET | `/api/auth/me` | User | Current account |
+| GET | `/api/songs` | Public | Browse/search tracks |
+| GET | `/api/playlists` | User | List personal playlists |
+| POST | `/api/playlists` | User | Create playlist |
+| POST | `/api/playlists/:id/songs` | Owner | Add a track |
+| GET | `/api/users/liked` | User | Get liked tracks |
+| POST | `/api/users/liked/:songId` | User | Like/unlike track |
+| POST | `/api/admin/songs` | Admin | Upload a track |
+
+Authenticated endpoints require an `Authorization: Bearer <token>` header.
+
+## Project structure
 
 ```text
 Spotify-Clone/
-├── css/
-│   ├── style.css
-│   └── utility.css
-├── img/
-│   └── interface icons and artwork
-├── js/
-│   └── script.js
-├── songs/
-│   └── ncs/
-│       ├── info.json
-│       ├── cover.jpg
-│       └── *.mp3
-└── index.html
+├── client/                 # React + Vite frontend
+│   └── src/
+│       ├── App.jsx
+│       ├── api.js
+│       └── styles.css
+├── server/                 # Express backend
+│   └── src/
+│       ├── middleware/
+│       ├── models/
+│       ├── routes/
+│       └── scripts/
+├── css/                    # Original learning-project assets
+├── img/                    # Original icons
+├── songs/                  # Original sample playlist folders
+├── .env.example
+└── package.json
 ```
 
-Each playlist folder should contain:
-- `info.json` with a `title` and `description`
-- `cover.jpg` for its artwork
-- One or more MP3 files that you are permitted to use
+## Important notes
 
-Example `info.json`:
-
-```json
-{
-  "title": "My Playlist",
-  "description": "A collection of sample tracks"
-}
-```
-
-## Run Locally
-
-This project uses folder-listing requests to discover playlist directories and MP3 files. Run it through a local web server rather than opening `index.html` directly.
-
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/Yogesh18072005/Spotify-Clone.git
-   cd Spotify-Clone
-   ```
-2. Open the project folder in VS Code.
-3. Start the folder using the **Live Server** extension (or another static server that supports directory listings).
-4. Open the local URL provided by the server.
-
-## Current Scope
-
-This is a **frontend-only learning project**. It does not currently implement user accounts, a backend API, cloud music storage or streaming from a commercial music catalogue. Audio files are loaded from the project's local playlist folders.
-
-## Learning Outcomes
-
-- Structuring a multi-section web interface with semantic HTML
-- Building responsive layouts with CSS Flexbox and media queries
-- Manipulating the DOM to render playlists and tracks dynamically
-- Working with asynchronous `fetch()` requests
-- Managing audio playback events and player state
-- Implementing interactive controls for seeking and volume
+- Uploaded audio is stored locally in `server/uploads` for development. For production, use object storage and configure backups.
+- This repository does not include a commercial music catalogue or copyrighted tracks. Upload only media you have permission to distribute.
+- Configure HTTPS, production CORS, secure secrets, persistent object storage and deployment-specific limits before public production use.
+- The older static HTML/JavaScript learning files remain in the repository; the active full-stack application runs from `client/` and `server/`.
 
 ## Author
 
-**Yogesh Chhikara**  
-GitHub: [@Yogesh18072005](https://github.com/Yogesh18072005)
-
----
-
-*Built for learning and portfolio demonstration.*
+**Yogesh Chhikara** · [GitHub](https://github.com/Yogesh18072005)
