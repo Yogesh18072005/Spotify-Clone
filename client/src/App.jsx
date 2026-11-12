@@ -44,6 +44,7 @@ function App() {
   const [query, setQuery] = useState("");
   const [authMode, setAuthMode] = useState("");
   const [showUpload, setShowUpload] = useState(false);
+  const [showNowPlaying, setShowNowPlaying] = useState(false);
   const [showPlaylistMenu, setShowPlaylistMenu] = useState(false);
   const [notice, setNotice] = useState("");
   const [progress, setProgress] = useState(0);
@@ -96,7 +97,7 @@ function App() {
   const isAdmin = user?.role === "admin";
   function playSong(song) {
     if (!song?.audioUrl) return;
-    setActiveSong(song); setPlaying(true);
+    setActiveSong(song); setPlaying(true); setShowNowPlaying(true);
     requestAnimationFrame(() => audio.current?.play().catch(() => setNotice("Unable to play this audio file.")));
   }
   function togglePlay() {
@@ -159,7 +160,7 @@ function App() {
     catch (err) { setNotice(err.message); }
   }
 
-  return <div className="app-shell">
+  return <div className={showNowPlaying && activeSong ? "app-shell now-playing-open" : "app-shell"}>
     <aside className="sidebar">
       <a className="brand" href="#"><span className="brand-mark">♫</span> melody</a>
       <nav className="main-nav"><button className="nav-link active"><Home/>Home</button><label className="nav-search"><Search/><input placeholder="Search music" value={query} onChange={e => setQuery(e.target.value)}/></label></nav>
@@ -196,6 +197,25 @@ function App() {
       <div className="player-volume"><Volume2 size={18}/><input aria-label="Volume" type="range" min="0" max="1" step="0.01" value={volume} onChange={e => setVolume(Number(e.target.value))}/></div>
     </footer>
     <audio ref={audio} src={activeSong?.audioUrl || ""} onTimeUpdate={e => setProgress(e.currentTarget.currentTime)} onLoadedMetadata={e => setDuration(e.currentTarget.duration || 0)} onEnded={() => stepTrack(1)} onPlay={() => setPlaying(true)} onPause={() => setPlaying(false)}/>
+    {showNowPlaying && activeSong && <section className="now-playing-screen" aria-label="Now playing">
+      <div className="now-playing-topbar">
+        <button className="np-back" onClick={() => setShowNowPlaying(false)}><X size={18}/> Back to browsing</button>
+        <span className="np-label">NOW PLAYING</span>
+        <span className="np-provider">{activeSong.provider === "audius" ? "AUDIOUS" : "YOUR LIBRARY"}</span>
+      </div>
+      <div className="now-playing-content">
+        <div className="np-art-wrap"><div className="np-art-glow"/><div className="np-art">{activeSong.coverUrl ? <img src={activeSong.coverUrl} alt={activeSong.title + " artwork"}/> : <span>♫</span>}</div></div>
+        <div className="np-track-info"><span className="eyebrow">MELODY PLAYER</span><h1>{activeSong.title}</h1><p>{activeSong.artist || "Unknown artist"}</p>
+          <div className="np-actions"><button className={liked.includes(activeSong._id) ? "np-like active" : "np-like"} onClick={() => toggleLike(activeSong)}><Heart size={19} fill={liked.includes(activeSong._id) ? "currentColor" : "none"}/> {liked.includes(activeSong._id) ? "Liked" : "Like"}</button>
+          {user && playlists.length > 0 && <div className="np-playlist-wrap"><button className="np-like" onClick={() => setShowPlaylistMenu(!showPlaylistMenu)}><Plus size={19}/> Add to playlist</button>{showPlaylistMenu && <div className="np-playlist-popover">{playlists.map(list => <button key={list._id} onClick={() => addToPlaylist(list)}>{list.name}</button>)}</div>}</div>}
+          {activeSong.provider === "audius" && activeSong.sourceUrl && <a className="np-source" href={activeSong.sourceUrl} target="_blank" rel="noreferrer">View on Audius ↗</a>}</div>
+        </div>
+        <div className="np-playback"><div className="np-controls"><button onClick={() => stepTrack(-1)} aria-label="Previous track"><SkipBack size={25}/></button><button className="np-main-play" onClick={togglePlay} aria-label={playing ? "Pause" : "Play"}>{playing ? <Pause size={27} fill="currentColor"/> : <Play size={27} fill="currentColor"/>}</button><button onClick={() => stepTrack(1)} aria-label="Next track"><SkipForward size={25}/></button></div>
+          <div className="np-seek"><span>{formatTime(progress)}</span><input aria-label="Track progress" type="range" min="0" max={duration || 0} value={Math.min(progress,duration || 0)} onChange={e => { if (audio.current) audio.current.currentTime = Number(e.target.value); setProgress(Number(e.target.value)); }}/><span>{formatTime(duration)}</span></div>
+          <div className="np-volume"><Volume2 size={18}/><input aria-label="Volume" type="range" min="0" max="1" step="0.01" value={volume} onChange={e => setVolume(Number(e.target.value))}/></div>
+        </div>
+      </div>
+    </section>}
     {notice && <div className="toast">{notice}</div>}
     {authMode && <AuthModal mode={authMode} onClose={() => setAuthMode("")} onSuccess={nextUser => {setUser(nextUser); setAuthMode(""); loadLibrary();}} switchMode={setAuthMode}/>}
     {showUpload && <div className="overlay"><form className="modal upload-modal" onSubmit={uploadSong}><button className="icon-btn modal-close" type="button" onClick={() => setShowUpload(false)}><X/></button><h2>Upload a track</h2><p className="muted">Only upload audio and artwork you own or are licensed to use.</p><label>Song title<input required name="title" placeholder="Track title"/></label><label>Artist<input name="artist" placeholder="Artist name"/></label><label>Album<input name="album" placeholder="Album name"/></label><label>Audio file<input required name="audio" type="file" accept="audio/mpeg,audio/mp3,audio/wav,audio/ogg"/></label><label>Cover image (optional)<input name="cover" type="file" accept="image/png,image/jpeg,image/webp"/></label><button className="primary full" type="submit"><Upload size={16}/> Upload track</button></form></div>}
