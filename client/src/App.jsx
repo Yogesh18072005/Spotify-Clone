@@ -38,6 +38,11 @@ function App() {
   const [audiusTracks, setAudiusTracks] = useState([]);
   const [audiusLoading, setAudiusLoading] = useState(false);
   const [playlists, setPlaylists] = useState([]);
+  const [likedSongs, setLikedSongs] = useState([]);
+  const [selectedCollection, setSelectedCollection] = useState(null);
+  const [showCreatePlaylist, setShowCreatePlaylist] = useState(false);
+  const [newPlaylistName, setNewPlaylistName] = useState("");
+  const [recommendedTracks, setRecommendedTracks] = useState([]);
   const [liked, setLiked] = useState([]);
   const [activeSong, setActiveSong] = useState(null);
   const [playing, setPlaying] = useState(false);
@@ -68,11 +73,19 @@ function App() {
     if (!getToken()) return;
     try {
       const data = await request("/auth/me"); setUser(data.user);
-      const likedData = await request("/users/liked"); setLiked(likedData.songs.map(s => s._id));
+      const likedData = await request("/users/liked"); setLikedSongs(likedData.songs); setLiked(likedData.songs.map(s => s._id));
     } catch { localStorage.removeItem("melody_token"); }
   }
   useEffect(() => { loadLibrary(); loadProfile(); }, []);
-  useEffect(() => { request("/discover/trending").then(data => setAudiusTracks(data.tracks || [])).catch(() => {}); }, []);
+  useEffect(() => { request("/discover/trending").then(data => { setAudiusTracks(data.tracks || []); setRecommendedTracks(data.tracks || []); }).catch(() => {}); }, []);
+  useEffect(() => {
+    if (!activeSong?.artist) return;
+    let cancelled = false;
+    request("/discover/search?q=" + encodeURIComponent(activeSong.artist)).then(data => {
+      if (!cancelled) setRecommendedTracks((data.tracks || []).filter(track => track.title !== activeSong.title).slice(0, 8));
+    }).catch(() => { if (!cancelled) setRecommendedTracks(audiusTracks.filter(track => track.title !== activeSong.title).slice(0, 8)); });
+    return () => { cancelled = true; };
+  }, [activeSong?._id]);
   useEffect(() => { if (audio.current) audio.current.volume = volume; }, [volume]);
   useEffect(() => { if (notice) { const timer = setTimeout(() => setNotice(""), 3500); return () => clearTimeout(timer); } }, [notice]);
 
@@ -125,12 +138,16 @@ function App() {
       setLiked(data.liked ? [...liked, songId] : liked.filter(id => id !== songId));
     } catch (err) { setNotice(err.message); }
   }
-  async function createPlaylist() {
+  async function createPlaylist(event) {
+    event?.preventDefault();
     if (!user) { setAuthMode("login"); return; }
-    const name = window.prompt("Name your playlist");
-    if (!name?.trim()) return;
-    try { await request("/playlists", { method: "POST", body: JSON.stringify({ name }) }); await loadLibrary(); }
-    catch (err) { setNotice(err.message); }
+    if (!newPlaylistName.trim()) { setNotice("Enter a playlist name first."); return; }
+    try {
+      const data = await request("/playlists", { method: "POST", body: JSON.stringify({ name: newPlaylistName.trim() }) });
+      setNewPlaylistName(""); setShowCreatePlaylist(false); await loadLibrary();
+      setSelectedCollection({ type: "playlist", id: data.playlist._id });
+      setNotice("Playlist created in Your Library.");
+    } catch (err) { setNotice(err.message); }
   }
   async function addToPlaylist(playlist) {
     if (!activeSong) return;
@@ -164,10 +181,11 @@ function App() {
     <aside className="sidebar">
       <a className="brand" href="#"><span className="brand-mark">♫</span> melody</a>
       <nav className="main-nav"><button className="nav-link active"><Home/>Home</button><label className="nav-search"><Search/><input placeholder="Search music" value={query} onChange={e => setQuery(e.target.value)}/></label></nav>
-      <section className="library-panel"><div className="library-heading"><span><Library/> Your Library</span><button className="icon-btn" title="Create playlist" onClick={createPlaylist}><Plus/></button></div>
+      <section className="library-panel"><div className="library-heading"><span><Library/> Your Library</span><button className="icon-btn" title="Create playlist" onClick={() => user ? setShowCreatePlaylist(v => !v) : setAuthMode("login")}><Plus/></button></div>
+        {showCreatePlaylist && <form className="inline-playlist-create" onSubmit={createPlaylist}><input autoFocus maxLength="80" placeholder="Playlist name" value={newPlaylistName} onChange={e => setNewPlaylistName(e.target.value)}/><button className="primary" type="submit">Create</button></form>}
         <div className="side-playlists">
-          {playlists.map(list => <button key={list._id} className="side-playlist" onClick={() => setQuery("")}><span className="mini-cover">♫</span><span><b>{list.name}</b><small>Playlist · {list.songs.length} tracks</small></span></button>)}
-          {user && <button className="side-playlist" onClick={() => setQuery("")}><span className="mini-cover liked"><Heart/></span><span><b>Liked Songs</b><small>{liked.length} liked tracks</small></span></button>}
+          {playlists.map(list => <button key={list._id} className={selectedCollection?.id === list._id ? "side-playlist selected" : "side-playlist"} onClick={() => { setSelectedCollection({ type: "playlist", id: list._id }); document.getElementById("selected-collection")?.scrollIntoView({ behavior: "smooth" }); }}><span className="mini-cover">♫</span><span><b>{list.name}</b><small>Playlist · {list.songs.length} tracks</small></span></button>)}
+          {user && <button className={selectedCollection?.type === "liked" ? "side-playlist selected" : "side-playlist"} onClick={() => { setSelectedCollection({ type: "liked" }); document.getElementById("selected-collection")?.scrollIntoView({ behavior: "smooth" }); }}><span className="mini-cover liked"><Heart/></span><span><b>Liked Songs</b><small>{liked.length} liked tracks</small></span></button>}
           {!playlists.length && <p className="muted small">Your playlists will appear here.</p>}
         </div>
         <div className="sidebar-bottom"><p>Build your own music space.</p><small>Independent music player project</small></div>
@@ -180,6 +198,10 @@ function App() {
       </header>
       <section className="hero"><div><span className="eyebrow">YOUR SOUNDTRACK STARTS HERE</span><h1>Music that moves<br/><span>with you.</span></h1><p>Discover tracks, build playlists and keep your favourites close.</p><button className="primary hero-cta" onClick={() => document.getElementById("music-library")?.scrollIntoView({behavior:"smooth"})}><Play size={17} fill="currentColor"/> Explore music</button></div><div className="hero-art"><div className="orbit orbit-one"/><div className="orbit orbit-two"/><div className="hero-disc"><span>♫</span></div><div className="floating-note note-one">♪</div><div className="floating-note note-two">♫</div></div></section>
 
+      {selectedCollection && <section className="section selected-collection" id="selected-collection">
+        <div className="section-heading"><div><span className="eyebrow">YOUR MUSIC</span><h2>{selectedCollection.type === "liked" ? "Liked Songs" : playlists.find(p => p._id === selectedCollection.id)?.name || "Your Playlist"}</h2></div><button className="outline" onClick={() => setSelectedCollection(null)}>Back to Home</button></div>
+        {(() => { const list = selectedCollection.type === "liked" ? likedSongs : playlists.find(p => p._id === selectedCollection.id)?.songs || []; return list.length ? <div className="song-grid">{list.map(song => <article className="song-card" key={song._id}><button className="cover" onClick={() => playSong(song)}>{song.coverUrl ? <img src={song.coverUrl} alt={song.title + " artwork"}/> : <span>♫</span>}<i><Play size={20} fill="currentColor"/></i></button><div className="song-card-meta"><div><b>{song.title}</b><small>{song.artist || "Unknown artist"}</small></div>{selectedCollection.type === "liked" && <button className="like liked" onClick={() => toggleLike(song)} title="Remove from liked songs"><Heart size={18} fill="currentColor"/></button>}</div></article>)}</div> : <div className="empty-state"><div className="empty-icon"><Music2 size={30}/></div><h3>{selectedCollection.type === "liked" ? "No liked songs yet" : "This playlist is empty"}</h3><p>Like a song or add tracks to this playlist and they will appear here.</p></div>; })()}
+      </section>}
       <section className="section audius-section" id="audius-discovery">
         <div className="section-heading"><div><span className="eyebrow">OPEN MUSIC CATALOGUE</span><h2>Discover on Audius</h2></div><span className="source-pill">POWERED BY AUDIUS</span></div>
         <div className="discover-controls"><input className="discover-input" value={query} onChange={e => setQuery(e.target.value)} onKeyDown={e => e.key === "Enter" && searchAudius()} placeholder="Search songs, artists or genres..."/><button className="primary" onClick={searchAudius} disabled={audiusLoading}>{audiusLoading ? "Searching..." : "Search Audius"}</button></div>
@@ -213,6 +235,9 @@ function App() {
         <div className="np-playback"><div className="np-controls"><button onClick={() => stepTrack(-1)} aria-label="Previous track"><SkipBack size={25}/></button><button className="np-main-play" onClick={togglePlay} aria-label={playing ? "Pause" : "Play"}>{playing ? <Pause size={27} fill="currentColor"/> : <Play size={27} fill="currentColor"/>}</button><button onClick={() => stepTrack(1)} aria-label="Next track"><SkipForward size={25}/></button></div>
           <div className="np-seek"><span>{formatTime(progress)}</span><input aria-label="Track progress" type="range" min="0" max={duration || 0} value={Math.min(progress,duration || 0)} onChange={e => { if (audio.current) audio.current.currentTime = Number(e.target.value); setProgress(Number(e.target.value)); }}/><span>{formatTime(duration)}</span></div>
           <div className="np-volume"><Volume2 size={18}/><input aria-label="Volume" type="range" min="0" max="1" step="0.01" value={volume} onChange={e => setVolume(Number(e.target.value))}/></div>
+        </div>
+        <div className="np-recommendations"><div className="np-rec-heading"><span className="eyebrow">KEEP THE MUSIC GOING</span><h2>Recommended for you</h2><p>More tracks based on the artist you’re listening to.</p></div>
+          {recommendedTracks.length ? <div className="np-rec-grid">{recommendedTracks.slice(0,6).map(track => <article className="np-rec-card" key={track.id}><button className="np-rec-cover" onClick={() => playAudius(track)}>{track.artwork ? <img src={track.artwork} alt={track.title + " artwork"}/> : "♫"}<i><Play size={15} fill="currentColor"/></i></button><div><b>{track.title}</b><small>{track.artist}</small></div></article>)}</div> : <p className="muted small">Finding similar tracks…</p>}
         </div>
       </div>
     </section>}
