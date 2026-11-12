@@ -44,6 +44,7 @@ function App() {
   const [query, setQuery] = useState("");
   const [authMode, setAuthMode] = useState("");
   const [showUpload, setShowUpload] = useState(false);
+  const [showPlaylistMenu, setShowPlaylistMenu] = useState(false);
   const [notice, setNotice] = useState("");
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -132,8 +133,15 @@ function App() {
   }
   async function addToPlaylist(playlist) {
     if (!activeSong) return;
-    try { await request(`/playlists/${playlist._id}/songs`, { method: "POST", body: JSON.stringify({ songId: activeSong._id }) }); setNotice("Added to playlist"); await loadLibrary(); }
-    catch (err) { setNotice(err.message); }
+    try {
+      let songId = activeSong._id;
+      if (activeSong.provider === "audius") {
+        const imported = await request("/discover/import", { method: "POST", body: JSON.stringify({ id: activeSong._id.replace("audius:", ""), title: activeSong.title, artist: activeSong.artist, artwork: activeSong.coverUrl, permalink: activeSong.sourceUrl }) });
+        songId = imported.song._id;
+      }
+      await request(`/playlists/${playlist._id}/songs`, { method: "POST", body: JSON.stringify({ songId }) });
+      setShowPlaylistMenu(false); setNotice("Added to " + playlist.name); await loadLibrary();
+    } catch (err) { setNotice(err.message); }
   }
   async function deletePlaylist(playlist) {
     if (!window.confirm("Delete playlist " + playlist.name + "?")) return;
@@ -183,7 +191,7 @@ function App() {
       {playlists.length > 0 && <section className="section"><div className="section-heading"><div><span className="eyebrow">MADE BY YOU</span><h2>Your playlists</h2></div></div><div className="playlist-grid">{playlists.map(list => <article className="playlist-card" key={list._id}><div className="playlist-art">♫</div><div className="playlist-title"><h3>{list.name}</h3><button className="icon-btn" title="Delete playlist" onClick={() => deletePlaylist(list)}><X size={15}/></button></div><p>{list.songs.length} tracks</p><div className="playlist-track-list">{list.songs.slice(0,3).map(song => <button key={song._id} onClick={() => playSong(song)}>{song.title}</button>)}</div></article>)}</div></section>}
     </main>
 
-    <footer className="player"><div className="now-playing">{activeSong ? <><div className="now-cover">{activeSong.coverUrl ? <img src={activeSong.coverUrl} alt=""/> : "♫"}</div><div className="now-meta"><b>{activeSong.title}</b><small>{activeSong.artist || "Unknown artist"}</small></div><button className={liked.includes(activeSong._id) ? "like liked" : "like"} onClick={() => toggleLike(activeSong)}><Heart size={17} fill={liked.includes(activeSong._id) ? "currentColor" : "none"}/></button></> : <span className="muted small">Select a track to start listening</span>}</div>
+    <footer className="player"><div className="now-playing">{activeSong ? <><div className="now-cover">{activeSong.coverUrl ? <img src={activeSong.coverUrl} alt=""/> : "♫"}</div><div className="now-meta"><b>{activeSong.title}</b><small>{activeSong.artist || "Unknown artist"}</small></div><button className={liked.includes(activeSong._id) ? "like liked" : "like"} onClick={() => toggleLike(activeSong)} title="Like track"><Heart size={17} fill={liked.includes(activeSong._id) ? "currentColor" : "none"}/></button>{user && playlists.length > 0 && <div className="player-playlist-menu"><button className="icon-btn" title="Add to playlist" onClick={() => setShowPlaylistMenu(!showPlaylistMenu)}><Plus size={17}/></button>{showPlaylistMenu && <div className="playlist-popover">{playlists.map(list => <button key={list._id} onClick={() => addToPlaylist(list)}>{list.name}</button>)}</div>}</div>}</> : <span className="muted small">Select a track to start listening</span>}</div>
       <div className="player-center"><div className="player-controls"><button className="player-icon" onClick={() => stepTrack(-1)} aria-label="Previous"><SkipBack/></button><button className="play-toggle" onClick={togglePlay} aria-label={playing ? "Pause" : "Play"}>{playing ? <Pause fill="currentColor"/> : <Play fill="currentColor"/>}</button><button className="player-icon" onClick={() => stepTrack(1)} aria-label="Next"><SkipForward/></button></div><div className="timeline"><span>{formatTime(progress)}</span><input aria-label="Seek" type="range" min="0" max={duration || 0} value={Math.min(progress,duration || 0)} onChange={e => { audio.current.currentTime = Number(e.target.value); setProgress(Number(e.target.value)); }}/><span>{formatTime(duration)}</span></div></div>
       <div className="player-volume"><Volume2 size={18}/><input aria-label="Volume" type="range" min="0" max="1" step="0.01" value={volume} onChange={e => setVolume(Number(e.target.value))}/></div>
     </footer>
