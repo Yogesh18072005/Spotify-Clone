@@ -35,6 +35,8 @@ function AuthModal({ mode, onClose, onSuccess, switchMode }) {
 function App() {
   const [user, setUser] = useState(null);
   const [songs, setSongs] = useState([]);
+  const [audiusTracks, setAudiusTracks] = useState([]);
+  const [audiusLoading, setAudiusLoading] = useState(false);
   const [playlists, setPlaylists] = useState([]);
   const [liked, setLiked] = useState([]);
   const [activeSong, setActiveSong] = useState(null);
@@ -68,10 +70,28 @@ function App() {
     } catch { localStorage.removeItem("melody_token"); }
   }
   useEffect(() => { loadLibrary(); loadProfile(); }, []);
+  useEffect(() => { request("/discover/trending").then(data => setAudiusTracks(data.tracks || [])).catch(() => {}); }, []);
   useEffect(() => { if (audio.current) audio.current.volume = volume; }, [volume]);
   useEffect(() => { if (notice) { const timer = setTimeout(() => setNotice(""), 3500); return () => clearTimeout(timer); } }, [notice]);
 
   const filteredSongs = useMemo(() => songs.filter(song => `${song.title} ${song.artist} ${song.album}`.toLowerCase().includes(query.toLowerCase())), [songs, query]);
+  async function searchAudius() {
+    if (!query.trim()) { setNotice("Enter a song or artist to search Audius."); return; }
+    setAudiusLoading(true);
+    try { const data = await request("/discover/search?q=" + encodeURIComponent(query.trim())); setAudiusTracks(data.tracks || []); }
+    catch (err) { setNotice(err.message); }
+    finally { setAudiusLoading(false); }
+  }
+  function playAudius(track) {
+    playSong({ _id: "audius:" + track.id, title: track.title, artist: track.artist, album: "Audius", audioUrl: "/api/discover/" + encodeURIComponent(track.id) + "/stream", coverUrl: track.artwork, provider: "audius", sourceUrl: track.permalink });
+  }
+  async function addAudiusToLibrary(track) {
+    if (!user) { setAuthMode("login"); setNotice("Log in to save tracks to your library."); return; }
+    try {
+      await request("/discover/import", { method: "POST", body: JSON.stringify(track) });
+      await loadLibrary(); setNotice("Added to your Melody library.");
+    } catch (err) { setNotice(err.message); }
+  }
   const isAdmin = user?.role === "admin";
   function playSong(song) {
     if (!song?.audioUrl) return;
@@ -145,6 +165,12 @@ function App() {
       </header>
       <section className="hero"><div><span className="eyebrow">YOUR SOUNDTRACK STARTS HERE</span><h1>Music that moves<br/><span>with you.</span></h1><p>Discover tracks, build playlists and keep your favourites close.</p><button className="primary hero-cta" onClick={() => document.getElementById("music-library")?.scrollIntoView({behavior:"smooth"})}><Play size={17} fill="currentColor"/> Explore music</button></div><div className="hero-art"><div className="orbit orbit-one"/><div className="orbit orbit-two"/><div className="hero-disc"><span>♫</span></div><div className="floating-note note-one">♪</div><div className="floating-note note-two">♫</div></div></section>
 
+      <section className="section audius-section" id="audius-discovery">
+        <div className="section-heading"><div><span className="eyebrow">OPEN MUSIC CATALOGUE</span><h2>Discover on Audius</h2></div><span className="source-pill">POWERED BY AUDIUS</span></div>
+        <div className="discover-controls"><input className="discover-input" value={query} onChange={e => setQuery(e.target.value)} onKeyDown={e => e.key === "Enter" && searchAudius()} placeholder="Search songs, artists or genres..."/><button className="primary" onClick={searchAudius} disabled={audiusLoading}>{audiusLoading ? "Searching..." : "Search Audius"}</button></div>
+        {audiusTracks.length ? <div className="song-grid audius-grid">{audiusTracks.map(track => <article className="song-card" key={track.id}><button className="cover" onClick={() => playAudius(track)}>{track.artwork ? <img src={track.artwork} alt={track.title + " artwork"}/> : <span>♫</span>}<i><Play size={20} fill="currentColor"/></i></button><div className="song-card-meta"><div><b>{track.title}</b><small>{track.artist}</small></div><button className="icon-btn" title="Add to Melody library" onClick={() => addAudiusToLibrary(track)}><Plus size={18}/></button></div><div className="audius-credit"><a href={track.permalink} target="_blank" rel="noreferrer">View on Audius ↗</a></div></article>)}</div> : <div className="audius-empty">{audiusLoading ? "Looking for tracks..." : "Trending tracks will appear here. Search Audius to find more music."}</div>}
+        <p className="audius-note">Music streams from Audius. Availability depends on each creator’s streaming settings. Track pages open on Audius for artist and source details.</p>
+      </section>
       <section className="section" id="music-library"><div className="section-heading"><div><span className="eyebrow">THE COLLECTION</span><h2>{query ? "Search results" : "Explore tracks"}</h2></div><span className="muted">{filteredSongs.length} tracks</span></div>
         {filteredSongs.length ? <div className="song-grid">{filteredSongs.map(song => <article className="song-card" key={song._id}><button className="cover" onClick={() => playSong(song)}>{song.coverUrl ? <img src={song.coverUrl} alt=""/> : <span>♫</span>}<i><Play size={20} fill="currentColor"/></i></button><div className="song-card-meta"><div><b>{song.title}</b><small>{song.artist || "Unknown artist"}</small></div><button className={liked.includes(song._id) ? "like liked" : "like"} onClick={() => toggleLike(song)} title="Like song"><Heart size={18} fill={liked.includes(song._id) ? "currentColor" : "none"}/></button></div></article>)}</div> : <div className="empty-state"><div className="empty-icon"><Music2 size={30}/></div><h3>{query ? "No matching tracks" : "Your music library is ready"}</h3><p>{query ? "Try another title, artist or album." : "No tracks have been uploaded yet. Sign in as an administrator to add music you have permission to use."}</p>{isAdmin && <button className="primary" onClick={() => setShowUpload(true)}><Upload size={16}/> Upload first track</button>}</div>}
       </section>
