@@ -76,7 +76,7 @@ function App() {
       const albumData = await request("/albums");
       setAlbums(albumData.albums || []);
       if (getToken()) {
-        const savedData = await request("/albums/saved");
+        const savedData = await request("/albums/library/saved");
         setSavedAlbums(savedData.albums || []);
       } else setSavedAlbums([]);
       if (getToken()) {
@@ -165,7 +165,7 @@ function App() {
     playSong(songs[nextIndex]);
   }
   async function refreshAlbums() {
-    try { const [all, saved] = await Promise.all([request("/albums"), getToken() ? request("/albums/saved") : Promise.resolve({ albums: [] })]); setAlbums(all.albums || []); setSavedAlbums(saved.albums || []); }
+    try { const [all, saved] = await Promise.all([request("/albums"), getToken() ? request("/albums/library/saved") : Promise.resolve({ albums: [] })]); setAlbums(all.albums || []); setSavedAlbums(saved.albums || []); }
     catch (err) { setNotice(err.message); }
   }
   async function toggleAlbumSave(album) {
