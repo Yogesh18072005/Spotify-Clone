@@ -64,3 +64,9 @@
 .approval-row>div{min-width:0;display:grid;gap:5px}.approval-row b{font-size:13px}.approval-row small{font-size:10px;color:#9ba99d}.approval-row p{font-size:11px;color:#aab5ac;margin:0;overflow-wrap:anywhere}
 .approval-row .primary{white-space:nowrap;padding:9px 12px;font-size:10px}
 @media(max-width:600px){.player-volume{display:none}.np-volume{gap:8px}.sleep-control{flex-wrap:wrap}.approval-row{align-items:flex-start}.approval-row .primary{padding:8px}.studio-modal{padding:25px 18px}.album-section .playlist-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+.album-track-editor{display:grid;gap:7px;padding:11px;background:#ffffff08;border:1px solid #ffffff15;border-radius:10px}
+.album-track-editor>b{font-size:12px}.album-track-editor>small{font-size:10px;color:#98a49a}
+.album-track-add{display:flex;gap:7px}
+.album-track-add select{flex:1;min-width:0;background:#111812;border:1px solid #43503f;border-radius:8px;color:#e5eee6;padding:8px;font-size:10px}
+.album-track-add .primary{padding:8px 12px;font-size:10px}
