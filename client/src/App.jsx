@@ -135,7 +135,9 @@ function App() {
         await loadLibrary();
       }
       const data = await request(`/users/liked/${songId}`, { method: "POST" });
-      setLiked(data.liked ? [...liked, songId] : liked.filter(id => id !== songId));
+      setLiked(current => data.liked ? [...new Set([...current, songId])] : current.filter(id => id !== songId));
+      const refreshed = await request("/users/liked");
+      setLikedSongs(refreshed.songs || []);
     } catch (err) { setNotice(err.message); }
   }
   async function createPlaylist(event) {
