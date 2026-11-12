@@ -55,7 +55,7 @@ router.post("/:id/save", protect, async (req, res, next) => {
   } catch (error) { next(error); }
 });
 
-router.get("/saved", protect, async (req, res, next) => {
+router.get("/library/saved", protect, async (req, res, next) => {
   try {
     const user = await User.findById(req.user._id).populate({ path: "savedAlbums", populate: [{ path: "artist", select: "name artistName" }, { path: "songs", select: "title artist audioUrl coverUrl" }] });
     res.json({ albums: user.savedAlbums });
