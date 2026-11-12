@@ -113,8 +113,14 @@ function App() {
   async function toggleLike(song) {
     if (!user) { setAuthMode("login"); return; }
     try {
-      const data = await request(`/users/liked/${song._id}`, { method: "POST" });
-      setLiked(data.liked ? [...liked, song._id] : liked.filter(id => id !== song._id));
+      let songId = song._id;
+      if (song.provider === "audius") {
+        const imported = await request("/discover/import", { method: "POST", body: JSON.stringify({ id: song._id.replace("audius:", ""), title: song.title, artist: song.artist, artwork: song.coverUrl, permalink: song.sourceUrl }) });
+        songId = imported.song._id;
+        await loadLibrary();
+      }
+      const data = await request(`/users/liked/${songId}`, { method: "POST" });
+      setLiked(data.liked ? [...liked, songId] : liked.filter(id => id !== songId));
     } catch (err) { setNotice(err.message); }
   }
   async function createPlaylist() {
