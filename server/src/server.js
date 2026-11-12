@@ -1,22 +1,19 @@
 import dotenv from "dotenv";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-dotenv.config({ path: path.resolve(__dirname, "../../.env") });
 import express from "express";
 import cors from "cors";
 import mongoose from "mongoose";
-import path from "path";
-import { fileURLToPath } from "url";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import authRoutes from "./routes/auth.js";
 import songRoutes from "./routes/songs.js";
 import playlistRoutes from "./routes/playlists.js";
 import userRoutes from "./routes/users.js";
 import adminRoutes from "./routes/admin.js";
 
-const app = express();
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+dotenv.config({ path: path.resolve(__dirname, "../../.env") });
+
+const app = express();
 app.use(cors({ origin: process.env.CLIENT_URL || "http://localhost:5173" }));
 app.use(express.json({ limit: "1mb" }));
 app.use("/uploads", express.static(path.resolve(__dirname, "../uploads")));
