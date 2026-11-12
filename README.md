@@ -4,7 +4,9 @@ A responsive music-library application built with the MERN stack: **MongoDB, Exp
 
 ## Features
 
-- Responsive React interface with music discovery and search
+- Responsive React interface with local-library search and Audius music discovery
+- Audius catalogue search, trending tracks, artwork and streaming playback
+- Save Audius tracks into the MongoDB-backed Melody library
 - Node.js + Express REST API
 - MongoDB models for users, songs and playlists
 - User registration and login with password hashing and JWT authentication
@@ -20,6 +22,7 @@ A responsive music-library application built with the MERN stack: **MongoDB, Exp
 - Database: MongoDB + Mongoose
 - Authentication: JSON Web Tokens + bcrypt
 - File handling: Multer (local uploads for development)
+- Music catalogue: Audius REST API (read-only search and streaming)
 
 ## Run locally
 
@@ -45,7 +48,7 @@ PowerShell:
 Copy-Item .env.example .env
 ```
 
-Update `.env` with your MongoDB URI and a long random JWT secret. Keep this file private and never commit real credentials.
+Update `.env` with your MongoDB URI and a long random JWT secret. Keep this file private and never commit real credentials. Audius discovery works without a key for development; optionally set `AUDIUS_API_KEY` to use your own Audius API key for higher rate limits.
 
 ### 3. Create the administrator account
 
@@ -74,7 +77,11 @@ npm run dev
 | POST | `/api/auth/register` | Public | Create an account |
 | POST | `/api/auth/login` | Public | Sign in |
 | GET | `/api/auth/me` | User | Current account |
-| GET | `/api/songs` | Public | Browse/search tracks |
+| GET | `/api/songs` | Public | Browse/search saved tracks |
+| GET | `/api/discover/trending` | Public | Browse trending Audius tracks |
+| GET | `/api/discover/search?q=...` | Public | Search Audius tracks |
+| GET | `/api/discover/:trackId/stream` | Public | Stream an available Audius track |
+| POST | `/api/discover/import` | User | Save an Audius track to the Melody library |
 | GET | `/api/playlists` | User | List personal playlists |
 | POST | `/api/playlists` | User | Create playlist |
 | POST | `/api/playlists/:id/songs` | Owner | Add a track |

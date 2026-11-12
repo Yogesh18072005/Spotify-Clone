@@ -23,6 +23,21 @@ const upload = multer({
     cb(allowed ? null : new Error("Unsupported file type"), allowed);
   }
 });
+router.get("/artists/pending", protect, adminOnly, async (_req, res, next) => {
+  try {
+    const User = (await import("../models/User.js")).default;
+    const artists = await User.find({ role: "artist_pending" }).select("name artistName email artistBio artistApplicationNote createdAt").sort({ createdAt: 1 });
+    res.json({ artists });
+  } catch (error) { next(error); }
+});
+router.patch("/artists/:id/approve", protect, adminOnly, async (req, res, next) => {
+  try {
+    const User = (await import("../models/User.js")).default;
+    const artist = await User.findOneAndUpdate({ _id: req.params.id, role: "artist_pending" }, { $set: { role: "artist" } }, { new: true }).select("name artistName email role");
+    if (!artist) return res.status(404).json({ message: "Pending artist application not found" });
+    res.json({ artist, message: "Artist approved. They can now publish music." });
+  } catch (error) { next(error); }
+});
 router.post("/songs", protect, adminOnly, upload.fields([{ name: "audio", maxCount: 1 }, { name: "cover", maxCount: 1 }]), async (req, res, next) => {
   try {
     if (!req.files?.audio?.[0]) return res.status(400).json({ message: "An audio file is required" });
