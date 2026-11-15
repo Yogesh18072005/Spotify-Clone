@@ -82,3 +82,13 @@
 @media(max-width:600px){.music-category-chips{gap:6px}.music-category-chip{padding:8px 10px;font-size:9px}}
 
 
+
+
+/* Melody quality upgrades */
+.load-more-wrap{display:flex;justify-content:center;padding:20px 0 5px}.load-more-wrap button:disabled{opacity:.6;cursor:wait}
+.song-card-actions{display:flex;align-items:center;gap:5px}.song-card-actions .icon-btn{width:29px;height:29px}
+.queue-list{display:grid;gap:7px;max-width:760px}.queue-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 13px;border:1px solid #ffffff14;background:#ffffff08;border-radius:10px}.queue-row>button:first-child{display:grid;gap:4px;min-width:0;flex:1;text-align:left;border:0;background:transparent;color:#e5eee6}.queue-row b,.queue-row small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.queue-row b{font-size:12px}.queue-row small{font-size:10px;color:#98a49a}
+.skeleton-grid{pointer-events:none}.skeleton-card{display:grid;gap:10px}.skeleton-cover,.skeleton-line{background:linear-gradient(90deg,#1a211c 20%,#2b352c 38%,#1a211c 60%);background-size:220% 100%;animation:melody-shimmer 1.35s ease-in-out infinite;border-radius:9px}.skeleton-cover{aspect-ratio:1;width:100%}.skeleton-line{height:11px;width:78%}.skeleton-line.short{width:48%}@keyframes melody-shimmer{to{background-position-x:-220%}}
+.app-error{min-height:100vh;display:grid;align-content:center;justify-items:center;gap:14px;padding:30px;background:#0b0e0c;color:#e5eee6;text-align:center}.app-error h1{font:700 30px 'Space Grotesk'}.app-error p{max-width:420px;color:#aab5ac;font-size:13px}.app-error button{border:0;border-radius:999px;background:#c6fa83;color:#15200e;padding:11px 18px;font-weight:700}
+@media(max-width:600px){.queue-row{padding:9px}.song-card-actions{gap:2px}.song-card-actions .icon-btn{width:26px;height:26px}}
+@media(prefers-reduced-motion:reduce){.skeleton-cover,.skeleton-line{animation:none}}
