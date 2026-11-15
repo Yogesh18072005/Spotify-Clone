@@ -82,15 +82,3 @@
 @media(max-width:600px){.music-category-chips{gap:6px}.music-category-chip{padding:8px 10px;font-size:9px}}
 
 
-/* YouTube discovery uses the official embedded player */
-.youtube-player-wrap{margin:18px 0 22px;padding:16px;background:#121814;border:1px solid #344034;border-radius:16px}
-.youtube-player-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
-.youtube-player-heading>div{display:grid;gap:5px;min-width:0}
-.youtube-player-heading b{font-size:13px;overflow-wrap:anywhere}
-.youtube-player-heading small{font-size:10px;color:#94a096}
-.youtube-embed{position:relative;width:100%;max-width:850px;margin:auto;aspect-ratio:16/9;background:#000;border-radius:11px;overflow:hidden}
-.youtube-embed iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
-.youtube-select-link{border:0;background:transparent;color:#c6fa83;padding:0;font-size:10px}
-.youtube-grid .audius-credit{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:8px}
-.youtube-grid .audius-credit a{font-size:10px}
-@media(max-width:600px){.youtube-player-wrap{padding:10px}.youtube-player-heading{align-items:flex-start}.youtube-player-heading .outline{font-size:9px;padding:8px}}
