@@ -43,6 +43,7 @@ function App() {
   const [songsHasMore, setSongsHasMore] = useState(false);
   const [loadingMoreSongs, setLoadingMoreSongs] = useState(false);
   const [audiusQuery, setAudiusQuery] = useState("");
+  const [searchSource, setSearchSource] = useState("audius");
   const debouncedAudiusQuery = useDebouncedValue(audiusQuery, 350);
   const [audiusTracks, setAudiusTracks] = useState([]);
   const [audiusLoading, setAudiusLoading] = useState(false);
@@ -156,6 +157,7 @@ function App() {
 
   const filteredSongs = useMemo(() => songs.filter(song => `${song.title} ${song.artist} ${song.album}`.toLowerCase().includes(query.toLowerCase())), [songs, query]);
   function searchAudiusTerm(term) {
+    setSearchSource("audius");
     const searchTerm = term.trim();
     if (!searchTerm) { setNotice("Enter a song, artist or genre to search Audius."); return; }
     setAudiusQuery(searchTerm);
@@ -316,7 +318,7 @@ function App() {
   return <div className={showNowPlaying && activeSong ? "app-shell now-playing-open" : "app-shell"}>
     <aside className="sidebar">
       <a className="brand" href="#"><span className="brand-mark">♫</span> melody</a>
-      <nav className="main-nav"><button className="nav-link active"><Home/>Home</button><label className="nav-search"><Search/><input placeholder="Search music" value={query} onChange={e => setQuery(e.target.value)}/></label></nav>
+      <nav className="main-nav"><button className="nav-link active"><Home/>Home</button><label className="nav-search"><Search/><input placeholder="Search Melody library" value={query} onFocus={() => setSearchSource("local")} onChange={e => { setSearchSource("local"); setQuery(e.target.value); }}/></label></nav>
       <section className="library-panel"><div className="library-heading"><span><Library/> Your Library</span><button className="icon-btn" title="Create playlist" onClick={() => user ? setShowCreatePlaylist(v => !v) : setAuthMode("login")}><Plus/></button></div>
         {showCreatePlaylist && <form className="inline-playlist-create" onSubmit={createPlaylist}><input autoFocus maxLength="80" placeholder="Playlist name" value={newPlaylistName} onChange={e => setNewPlaylistName(e.target.value)}/><button className="primary" type="submit">Create</button></form>}
         <div className="side-playlists">
@@ -341,7 +343,7 @@ function App() {
       <section className="section recommendation-section"><div className="section-heading"><div><span className="eyebrow">A LITTLE MORE TO LOVE</span><h2>Picked for you</h2></div></div>{recommendedTracks.length ? <div className="song-grid">{recommendedTracks.slice(0,6).map(track => <article className="song-card" key={"browse-"+track.id}><button className="cover" onClick={() => playAudius(track)}>{track.artwork ? <img src={track.artwork} alt={track.title + " artwork"}/> : <span>♫</span>}<i><Play size={20} fill="currentColor"/></i></button><div className="song-card-meta"><div><b>{track.title}</b><small>{track.artist}</small></div><button className="icon-btn" title="Add to library" onClick={() => addAudiusToLibrary(track)}><Plus size={17}/></button></div></article>)}</div> : <p className="muted small">Recommendations will appear as the catalogue loads.</p>}</section>
       <section className="section audius-section" id="audius-discovery">
         <div className="section-heading"><div><span className="eyebrow">OPEN MUSIC CATALOGUE</span><h2>Discover on Audius</h2></div><span className="source-pill">POWERED BY AUDIUS</span></div>
-        <div className="discover-controls"><input className="discover-input" value={audiusQuery} onChange={e => setAudiusQuery(e.target.value)} onKeyDown={e => e.key === "Enter" && searchAudius()} placeholder="Search songs, artists or genres..."/><button className="primary" onClick={searchAudius} disabled={audiusLoading}>{audiusLoading ? "Searching..." : "Search Audius"}</button></div>
+        <div className="discover-controls"><div className="search-source-switch"><button className={searchSource === "local" ? "active" : ""} onClick={() => setSearchSource("local")}>Melody Library</button><button className={searchSource === "audius" ? "active" : ""} onClick={() => setSearchSource("audius")}>Audius</button></div><input className="discover-input" value={searchSource === "audius" ? audiusQuery : query} onChange={e => searchSource === "audius" ? setAudiusQuery(e.target.value) : setQuery(e.target.value)} onKeyDown={e => e.key === "Enter" && (searchSource === "audius" ? searchAudius() : document.getElementById("music-library")?.scrollIntoView({ behavior: "smooth" }))} placeholder={searchSource === "audius" ? "Search Audius songs, artists or genres..." : "Search your Melody library..."}/><button className="primary" onClick={() => searchSource === "audius" ? searchAudius() : document.getElementById("music-library")?.scrollIntoView({ behavior: "smooth" })} disabled={searchSource === "audius" && audiusLoading}>{searchSource === "audius" ? (audiusLoading ? "Searching..." : "Search") : "View results"}</button></div>
         <div className="music-category-wrap">
           <p className="music-category-label">EXPLORE INDIAN MUSIC</p>
           <div className="music-category-chips">
