@@ -11,8 +11,12 @@ A responsive music-library application built with the MERN stack: **MongoDB, Exp
 - Node.js + Express REST API
 - MongoDB models for users, songs and playlists
 - User registration and login with password hashing and JWT authentication
-- Personal playlists and liked songs
-- Audio playback controls: play, pause, previous, next, seek and volume
+- Personal playlists and liked songs with paginated library shelves
+- Recently played history, an upcoming playback queue and device-local listening statistics
+- Audio playback controls: play, pause, previous, next, seek and volume, with a reusable player hook and event cleanup
+- Unified local-library / Audius search with debounced Audius queries
+- Keyboard shortcuts: Space to play/pause, arrow keys to seek, and Ctrl + arrow keys to change tracks
+- Loading skeletons and an application-level React error boundary
 - Administrator-only music upload with optional cover artwork
 - Protected API routes and rate-limited authentication endpoints
 
@@ -78,7 +82,9 @@ npm run dev
 | POST | `/api/auth/register` | Public | Create an account |
 | POST | `/api/auth/login` | Public | Sign in |
 | GET | `/api/auth/me` | User | Current account |
-| GET | `/api/songs` | Public | Browse/search saved tracks |
+| GET | `/api/songs` | Public | Browse/search saved tracks; accepts optional `page` and `limit` parameters |
+| GET | `/api/albums?page=1&limit=12` | Public | Paginated album catalogue |
+| GET | `/api/playlists?page=1&limit=12` | User | Paginated personal playlists |
 | GET | `/api/discover/trending` | Public | Browse trending Audius tracks |
 | GET | `/api/discover/search?q=...` | Public | Search Audius tracks |
 | GET | `/api/discover/:trackId/stream` | Public | Stream an available Audius track |
@@ -116,7 +122,7 @@ Spotify-Clone/
 
 ## Important notes
 
-- Uploaded audio is stored locally in `server/uploads` for development. For production, use object storage and configure backups.
+- Recently played history and listening statistics are stored in the current browser on this device; they are not synced between devices or accounts.\n- Uploaded audio is stored locally in `server/uploads` for development. For production, use object storage and configure backups.
 - This repository does not include a commercial music catalogue or copyrighted tracks. Upload only media you have permission to distribute. JioSaavn is opened on its official website; Melody does not scrape, download or proxy JioSaavn audio.
 - Configure HTTPS, production CORS, secure secrets, persistent object storage and deployment-specific limits before public production use.
 - The older static HTML/JavaScript learning files remain in the repository; the active full-stack application runs from `client/` and `server/`.

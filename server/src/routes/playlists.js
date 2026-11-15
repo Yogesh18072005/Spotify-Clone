@@ -4,8 +4,16 @@ import Song from "../models/Song.js";
 import { protect } from "../middleware/auth.js";
 const router = Router();
 router.get("/", protect, async (req, res, next) => {
-  try { const playlists = await Playlist.find({ owner: req.user._id }).populate("songs", "title artist audioUrl coverUrl").sort({ createdAt: -1 }); res.json({ playlists }); }
-  catch (error) { next(error); }
+  try {
+    const paginationRequested = req.query.page !== undefined || req.query.limit !== undefined;
+    const page = Math.max(1, Number.parseInt(req.query.page, 10) || 1);
+    const limit = Math.min(50, Math.max(1, Number.parseInt(req.query.limit, 10) || 20));
+    const query = Playlist.find({ owner: req.user._id }).populate("songs", "title artist audioUrl coverUrl").sort({ createdAt: -1 });
+    if (paginationRequested) query.skip((page - 1) * limit).limit(limit);
+    const [playlists, total] = await Promise.all([query, paginationRequested ? Playlist.countDocuments({ owner: req.user._id }) : Promise.resolve(null)]);
+    if (!paginationRequested) return res.json({ playlists });
+    res.json({ playlists, pagination: { page, limit, total, pages: Math.ceil(total / limit), hasMore: page * limit < total } });
+  } catch (error) { next(error); }
 });
 router.post("/", protect, async (req, res, next) => {
   try {
