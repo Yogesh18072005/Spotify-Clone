@@ -10,6 +10,7 @@ import playlistRoutes from "./routes/playlists.js";
 import userRoutes from "./routes/users.js";
 import adminRoutes from "./routes/admin.js";
 import discoverRoutes from "./routes/discover.js";
+import youtubeRoutes from "./routes/youtube.js";
 import albumRoutes from "./routes/albums.js";
 import artistRoutes from "./routes/artist.js";
 
@@ -27,6 +28,7 @@ app.use("/api/playlists", playlistRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/discover", discoverRoutes);
+app.use("/api/youtube", youtubeRoutes);
 app.use("/api/albums", albumRoutes);
 app.use("/api/artist", artistRoutes);
 app.use((err, _req, res, _next) => {
