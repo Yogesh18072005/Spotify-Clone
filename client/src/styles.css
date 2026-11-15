@@ -95,3 +95,5 @@
 
 .search-source-switch{display:flex;align-items:center;gap:4px;padding:4px;border:1px solid #354038;background:#111713;border-radius:999px;flex:none}.search-source-switch button{border:0;background:transparent;color:#9eaa9f;border-radius:999px;padding:8px 11px;font-size:10px;white-space:nowrap}.search-source-switch button.active{background:#2b3a27;color:#d4ff9a}
 @media(max-width:700px){.discover-controls{flex-wrap:wrap}.search-source-switch{width:100%;justify-content:center}.discover-controls .discover-input{flex:1 1 55%}}
+
+.stats-summary{display:grid;grid-template-columns:repeat(2,minmax(0,150px));gap:10px;margin:14px 0}.stats-summary>div{display:grid;gap:4px;padding:14px;background:#ffffff08;border:1px solid #ffffff14;border-radius:11px}.stats-summary b{font:600 24px 'Space Grotesk';color:#c6fa83}.stats-summary small{font-size:10px;color:#98a49a}.queue-row strong{font-size:10px;color:#c6fa83;white-space:nowrap}.listening-stats .queue-row>span{display:grid;gap:4px;min-width:0}
