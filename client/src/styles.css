@@ -92,3 +92,6 @@
 .app-error{min-height:100vh;display:grid;align-content:center;justify-items:center;gap:14px;padding:30px;background:#0b0e0c;color:#e5eee6;text-align:center}.app-error h1{font:700 30px 'Space Grotesk'}.app-error p{max-width:420px;color:#aab5ac;font-size:13px}.app-error button{border:0;border-radius:999px;background:#c6fa83;color:#15200e;padding:11px 18px;font-weight:700}
 @media(max-width:600px){.queue-row{padding:9px}.song-card-actions{gap:2px}.song-card-actions .icon-btn{width:26px;height:26px}}
 @media(prefers-reduced-motion:reduce){.skeleton-cover,.skeleton-line{animation:none}}
+
+.search-source-switch{display:flex;align-items:center;gap:4px;padding:4px;border:1px solid #354038;background:#111713;border-radius:999px;flex:none}.search-source-switch button{border:0;background:transparent;color:#9eaa9f;border-radius:999px;padding:8px 11px;font-size:10px;white-space:nowrap}.search-source-switch button.active{background:#2b3a27;color:#d4ff9a}
+@media(max-width:700px){.discover-controls{flex-wrap:wrap}.search-source-switch{width:100%;justify-content:center}.discover-controls .discover-input{flex:1 1 55%}}
