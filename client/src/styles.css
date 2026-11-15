@@ -70,3 +70,13 @@
 .album-track-add{display:flex;gap:7px}
 .album-track-add select{flex:1;min-width:0;background:#111812;border:1px solid #43503f;border-radius:8px;color:#e5eee6;padding:8px;font-size:10px}
 .album-track-add .primary{padding:8px 12px;font-size:10px}
+
+
+/* Indian and regional music discovery */
+.music-category-wrap{margin:0 0 18px}
+.music-category-label{font-size:9px;letter-spacing:1.5px;color:#9aa79c;font-weight:700;margin:0 0 10px 3px}
+.music-category-chips{display:flex;flex-wrap:wrap;gap:8px}
+.music-category-chip{border:1px solid #354238;background:#151b17;color:#c6d0c7;border-radius:999px;padding:9px 13px;font-size:10px;transition:.18s}
+.music-category-chip:hover,.music-category-chip.active{border-color:#a6d76d;background:#283624;color:#d4ff9a}
+.music-category-chip:disabled{opacity:.6;cursor:wait}
+@media(max-width:600px){.music-category-chips{gap:6px}.music-category-chip{padding:8px 10px;font-size:9px}}
