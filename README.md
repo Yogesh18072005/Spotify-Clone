@@ -117,16 +117,20 @@ Spotify-Clone/
 ├── img/                    # Original icons
 ├── songs/                  # Original sample playlist folders
 ├── .env.example
+├── CREDITS.md              # Author, technology and asset attribution
 └── package.json
 ```
 
 ## Important notes
 
-- Recently played history and listening statistics are stored in the current browser on this device; they are not synced between devices or accounts.\n- Uploaded audio is stored locally in `server/uploads` for development. For production, use object storage and configure backups.
+- Recently played history and listening statistics are stored in the current browser on this device; they are not synced between devices or accounts.
+- Uploaded audio is stored locally in `server/uploads` for development. For production, use object storage and configure backups.
 - This repository does not include a commercial music catalogue or copyrighted tracks. Upload only media you have permission to distribute. JioSaavn is opened on its official website; Melody does not scrape, download or proxy JioSaavn audio.
 - Configure HTTPS, production CORS, secure secrets, persistent object storage and deployment-specific limits before public production use.
 - The older static HTML/JavaScript learning files remain in the repository; the active full-stack application runs from `client/` and `server/`.
 
-## Author
+## Author and maintainer
 
 **Yogesh Chhikara** · [GitHub](https://github.com/Yogesh18072005)
+
+See [CREDITS.md](CREDITS.md) for third-party technology, service and legacy-asset attribution.
