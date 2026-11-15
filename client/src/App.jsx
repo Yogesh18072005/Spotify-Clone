@@ -39,6 +39,11 @@ function App() {
   const [songs, setSongs] = useState([]);
   const [audiusTracks, setAudiusTracks] = useState([]);
   const [audiusLoading, setAudiusLoading] = useState(false);
+  const [youtubeQuery, setYoutubeQuery] = useState("");
+  const [youtubeResults, setYoutubeResults] = useState([]);
+  const [youtubeLoading, setYoutubeLoading] = useState(false);
+  const [youtubeError, setYoutubeError] = useState("");
+  const [selectedYoutubeVideo, setSelectedYoutubeVideo] = useState(null);
   const [playlists, setPlaylists] = useState([]);
   const [albums, setAlbums] = useState([]);
   const [savedAlbums, setSavedAlbums] = useState([]);
@@ -137,6 +142,22 @@ function App() {
   }
   async function searchAudius() {
     await searchAudiusTerm(query);
+  }
+  async function searchYouTube(term = youtubeQuery) {
+    const searchTerm = term.trim();
+    if (!searchTerm) { setYoutubeError("Enter a song, artist or genre to search YouTube."); return; }
+    setYoutubeQuery(searchTerm);
+    setYoutubeLoading(true);
+    setYoutubeError("");
+    setSelectedYoutubeVideo(null);
+    try {
+      const data = await request("/youtube/search?q=" + encodeURIComponent(searchTerm));
+      setYoutubeResults(data.videos || []);
+      if (!data.videos?.length) setYoutubeError("No embeddable videos found. Try another search.");
+    } catch (err) {
+      setYoutubeResults([]);
+      setYoutubeError(err.message || "YouTube search is unavailable.");
+    } finally { setYoutubeLoading(false); }
   }
   function playAudius(track) {
     playSong({ _id: "audius:" + track.id, title: track.title, artist: track.artist, album: "Audius", audioUrl: "/api/discover/" + encodeURIComponent(track.id) + "/stream", coverUrl: track.artwork, provider: "audius", sourceUrl: track.permalink });
@@ -301,6 +322,27 @@ function App() {
         </div>
         {audiusTracks.length ? <div className="song-grid audius-grid">{audiusTracks.map(track => <article className="song-card" key={track.id}><button className="cover" onClick={() => playAudius(track)}>{track.artwork ? <img src={track.artwork} alt={track.title + " artwork"}/> : <span>♫</span>}<i><Play size={20} fill="currentColor"/></i></button><div className="song-card-meta"><div><b>{track.title}</b><small>{track.artist}</small></div><button className="icon-btn" title="Add to Melody library" onClick={() => addAudiusToLibrary(track)}><Plus size={18}/></button></div><div className="audius-credit"><a href={track.permalink} target="_blank" rel="noreferrer">View on Audius ↗</a></div></article>)}</div> : <div className="audius-empty">{audiusLoading ? "Looking for tracks..." : "Trending tracks will appear here. Search Audius to find more music."}</div>}
         <p className="audius-note">Music streams from Audius. Availability depends on each creator’s streaming settings. Track pages open on Audius for artist and source details.</p>
+      </section>
+      <section className="section youtube-section" id="youtube-discovery">
+        <div className="section-heading"><div><span className="eyebrow">INDIAN MUSIC SEARCH</span><h2>Discover on YouTube</h2></div><span className="source-pill">YOUTUBE PLAYER</span></div>
+        <div className="discover-controls"><input className="discover-input" value={youtubeQuery} onChange={e => setYoutubeQuery(e.target.value)} onKeyDown={e => e.key === "Enter" && searchYouTube()} placeholder="Search Bollywood, Punjabi, Haryanvi..."/><button className="primary" onClick={() => searchYouTube()} disabled={youtubeLoading}>{youtubeLoading ? "Searching..." : "Search YouTube"}</button></div>
+        <div className="music-category-wrap">
+          <p className="music-category-label">INDIAN MUSIC CATEGORIES</p>
+          <div className="music-category-chips">
+            {["Bollywood Hindi songs", "Punjabi songs", "Haryanvi songs", "Tamil hits", "Telugu hits", "Bhojpuri songs", "Marathi songs", "Bengali songs"].map(category => <button key={category} className={youtubeQuery.toLowerCase() === category.toLowerCase() ? "music-category-chip active" : "music-category-chip"} onClick={() => searchYouTube(category)} disabled={youtubeLoading}>{category.replace(/ songs$/i, "")}</button>)}
+          </div>
+        </div>
+        {youtubeError && <div className="audius-empty">{youtubeError}</div>}
+        {selectedYoutubeVideo && <div className="youtube-player-wrap">
+          <div className="youtube-player-heading"><div><b>{selectedYoutubeVideo.title}</b><small>{selectedYoutubeVideo.channelTitle}</small></div><button className="outline" onClick={() => setSelectedYoutubeVideo(null)}>Close player</button></div>
+          <div className="youtube-embed"><iframe src={"https://www.youtube.com/embed/" + encodeURIComponent(selectedYoutubeVideo.videoId)} title={selectedYoutubeVideo.title} allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerPolicy="strict-origin-when-cross-origin" allowFullScreen /></div>
+        </div>}
+        {youtubeResults.length > 0 && <div className="song-grid youtube-grid">{youtubeResults.map(video => <article className="song-card" key={video.videoId}>
+          <button className="cover" onClick={() => setSelectedYoutubeVideo(video)} aria-label={"Play " + video.title}>{video.thumbnail ? <img src={video.thumbnail} alt={video.title + " thumbnail"}/> : <span>▶</span>}<i><Play size={20} fill="currentColor"/></i></button>
+          <div className="song-card-meta"><div><b>{video.title}</b><small>{video.channelTitle}</small></div></div>
+          <div className="audius-credit"><button className="youtube-select-link" onClick={() => setSelectedYoutubeVideo(video)}>Play here</button><a href={"https://www.youtube.com/watch?v=" + encodeURIComponent(video.videoId)} target="_blank" rel="noreferrer">Open on YouTube ↗</a></div>
+        </article>)}</div>}
+        <p className="audius-note">Videos play in YouTube's official embedded player, including YouTube branding and ads where applicable. Melody does not download or extract YouTube audio.</p>
       </section>
       <section className="section album-section"><div className="section-heading"><div><span className="eyebrow">FULL RELEASES</span><h2>Albums</h2></div><span className="muted">{savedAlbums.length} saved</span></div>{albums.length ? <div className="playlist-grid">{albums.map(album => <article className="playlist-card album-card" key={album._id}><button className="album-art" onClick={() => setSelectedCollection({type:"album",id:album._id})}>{album.coverUrl ? <img src={album.coverUrl} alt={album.title}/> : <Disc3 size={42}/>}</button><div className="playlist-title"><h3>{album.title}</h3><button className={savedAlbums.some(item => item._id === album._id) ? "like liked" : "like"} title="Save album" onClick={() => toggleAlbumSave(album)}><Heart size={17} fill={savedAlbums.some(item => item._id === album._id) ? "currentColor" : "none"}/></button></div><p>{album.artist?.artistName || album.artist?.name || "Artist"} · {album.songs?.length || 0} tracks</p><button className="outline album-open" onClick={() => setSelectedCollection({type:"album",id:album._id})}>Open album</button></article>)}</div> : <div className="audius-empty">Artist albums will appear here.</div>}</section>
       {savedAlbums.length > 0 && <section className="section"><div className="section-heading"><div><span className="eyebrow">SAVED BY YOU</span><h2>Your Albums</h2></div></div><div className="playlist-grid">{savedAlbums.map(album => <article className="playlist-card album-card" key={"saved-"+album._id}><button className="album-art" onClick={() => setSelectedCollection({type:"album",id:album._id})}>{album.coverUrl ? <img src={album.coverUrl} alt={album.title}/> : <Disc3 size={42}/>}</button><div className="playlist-title"><h3>{album.title}</h3><button className="like liked" onClick={() => toggleAlbumSave(album)}><Heart size={17} fill="currentColor"/></button></div><p>{album.artist?.artistName || album.artist?.name || "Artist"}</p></article>)}</div></section>}
