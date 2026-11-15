@@ -330,7 +330,7 @@ function App() {
     catch (err) { setNotice(err.message); }
   }
   async function logout() {
-    localStorage.removeItem("melody_token"); setUser(null); setLiked([]); setLikedSongs([]); setSavedAlbums([]); setPlaylists([]); setSelectedCollection(null); setNotice("Logged out");
+    localStorage.removeItem("melody_token"); setUser(null); setLiked([]); setLikedSongs([]); setSavedAlbums([]); setPlaylists([]); setPlaylistPage(1); setPlaylistsHasMore(false); setSelectedCollection(null); setNotice("Logged out");
   }
   async function uploadSong(event) {
     event.preventDefault();
