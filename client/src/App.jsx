@@ -249,8 +249,10 @@ function App() {
     playSong(songs[nextIndex]);
   }
   async function refreshAlbums() {
-    try { const [all, saved] = await Promise.all([request("/albums"), getToken() ? request("/albums/library/saved") : Promise.resolve({ albums: [] })]); setAlbums(all.albums || []); setSavedAlbums(saved.albums || []); }
-    catch (err) { setNotice(err.message); }
+    try {
+      const [all, saved] = await Promise.all([request("/albums?page=1&limit=12"), getToken() ? request("/albums/library/saved") : Promise.resolve({ albums: [] })]);
+      setAlbums(all.albums || []); setAlbumPage(1); setAlbumsHasMore(Boolean(all.pagination?.hasMore)); setSavedAlbums(saved.albums || []);
+    } catch (err) { setNotice(err.message); }
   }
   async function toggleAlbumSave(album) {
     if (!user) { setAuthMode("login"); return; }
