@@ -17,6 +17,22 @@ router.post("/register", authLimit, async (req, res, next) => {
     res.status(201).json({ token: makeToken(user), user: publicUser(user) });
   } catch (error) { next(error); }
 });
+router.post("/register-artist", authLimit, async (req, res, next) => {
+  try {
+    const { name, artistName, email, password, bio, applicationNote } = req.body;
+    if (!name?.trim() || !artistName?.trim() || !email?.trim() || !password || password.length < 8) {
+      return res.status(400).json({ message: "Name, artist name, email and a password of at least 8 characters are required" });
+    }
+    if (await User.exists({ email: email.toLowerCase().trim() })) return res.status(409).json({ message: "An account with this email already exists" });
+    const user = await User.create({
+      name: name.trim(), artistName: artistName.trim(), artistBio: String(bio || "").slice(0, 1000),
+      artistApplicationNote: String(applicationNote || "").slice(0, 1000),
+      email: email.toLowerCase().trim(), role: "artist_pending", password: await bcrypt.hash(password, 12)
+    });
+    res.status(201).json({ token: makeToken(user), user: publicUser(user), message: "Artist application submitted. You can publish music after administrator approval." });
+  } catch (error) { next(error); }
+});
+
 router.post("/login", authLimit, async (req, res, next) => {
   try {
     const user = await User.findOne({ email: req.body.email?.toLowerCase().trim() }).select("+password");

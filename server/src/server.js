@@ -9,6 +9,9 @@ import songRoutes from "./routes/songs.js";
 import playlistRoutes from "./routes/playlists.js";
 import userRoutes from "./routes/users.js";
 import adminRoutes from "./routes/admin.js";
+import discoverRoutes from "./routes/discover.js";
+import albumRoutes from "./routes/albums.js";
+import artistRoutes from "./routes/artist.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: path.resolve(__dirname, "../../.env") });
@@ -23,6 +26,9 @@ app.use("/api/songs", songRoutes);
 app.use("/api/playlists", playlistRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/admin", adminRoutes);
+app.use("/api/discover", discoverRoutes);
+app.use("/api/albums", albumRoutes);
+app.use("/api/artist", artistRoutes);
 app.use((err, _req, res, _next) => {
   console.error(err);
   res.status(err.status || 500).json({ message: err.message || "Internal server error" });
