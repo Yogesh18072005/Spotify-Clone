@@ -5,7 +5,7 @@ import { protect } from "../middleware/auth.js";
 
 const router = Router();
 
-router.get("/", async (_req, res, next) => {
+router.get("/", async (req, res, next) => {
   try {
     const paginationRequested = req.query.page !== undefined || req.query.limit !== undefined;
     const page = Math.max(1, Number.parseInt(req.query.page, 10) || 1);
