@@ -48,7 +48,13 @@ function App() {
   const [audiusTracks, setAudiusTracks] = useState([]);
   const [audiusLoading, setAudiusLoading] = useState(false);
   const [playlists, setPlaylists] = useState([]);
+  const [playlistPage, setPlaylistPage] = useState(1);
+  const [playlistsHasMore, setPlaylistsHasMore] = useState(false);
+  const [loadingMorePlaylists, setLoadingMorePlaylists] = useState(false);
   const [albums, setAlbums] = useState([]);
+  const [albumPage, setAlbumPage] = useState(1);
+  const [albumsHasMore, setAlbumsHasMore] = useState(false);
+  const [loadingMoreAlbums, setLoadingMoreAlbums] = useState(false);
   const [savedAlbums, setSavedAlbums] = useState([]);
   const [pendingArtists, setPendingArtists] = useState([]);
   const [artistData, setArtistData] = useState({ songs: [], albums: [], profile: {} });
@@ -76,6 +82,7 @@ function App() {
   const { audioRef: audio, playing, setPlaying, progress, setProgress, duration, setDuration, volume, setVolume, muted, setMuted } = useAudioPlayer();
   const [recentlyPlayed, setRecentlyPlayed] = useState(() => { try { return JSON.parse(localStorage.getItem("melody_recently_played") || "[]"); } catch { return []; } });
   const [queue, setQueue] = useState([]);
+  const [playStats, setPlayStats] = useState(() => { try { return JSON.parse(localStorage.getItem("melody_play_stats") || "{}"); } catch { return {}; } });
 
   async function loadLibrary() {
     try {
@@ -83,15 +90,19 @@ function App() {
       setSongs(songData.songs || []);
       setSongPage(1);
       setSongsHasMore(Boolean(songData.pagination?.hasMore));
-      const albumData = await request("/albums");
+      const albumData = await request("/albums?page=1&limit=12");
       setAlbums(albumData.albums || []);
+      setAlbumPage(1);
+      setAlbumsHasMore(Boolean(albumData.pagination?.hasMore));
       if (getToken()) {
         const savedData = await request("/albums/library/saved");
         setSavedAlbums(savedData.albums || []);
       } else setSavedAlbums([]);
       if (getToken()) {
-        const playlistData = await request("/playlists");
-        setPlaylists(playlistData.playlists);
+        const playlistData = await request("/playlists?page=1&limit=12");
+        setPlaylists(playlistData.playlists || []);
+        setPlaylistPage(1);
+        setPlaylistsHasMore(Boolean(playlistData.pagination?.hasMore));
       } else {
         setPlaylists([]);
       }
@@ -130,6 +141,7 @@ function App() {
     return () => { cancelled = true; };
   }, [activeSong?._id]);
   useEffect(() => { localStorage.setItem("melody_recently_played", JSON.stringify(recentlyPlayed)); }, [recentlyPlayed]);
+  useEffect(() => { localStorage.setItem("melody_play_stats", JSON.stringify(playStats)); }, [playStats]);
   useEffect(() => {
     if (!selectedCollection) return;
     const timer = setTimeout(() => document.getElementById("selected-collection")?.scrollIntoView({ behavior: "smooth", block: "start" }), 60);
@@ -163,6 +175,20 @@ function App() {
     setAudiusQuery(searchTerm);
   }
   function searchAudius() { searchAudiusTerm(audiusQuery); }
+  async function loadMoreAlbums() {
+    if (loadingMoreAlbums || !albumsHasMore) return;
+    setLoadingMoreAlbums(true);
+    try { const nextPage = albumPage + 1; const data = await request(`/albums?page=${nextPage}&limit=12`); setAlbums(current => [...current, ...(data.albums || [])]); setAlbumPage(nextPage); setAlbumsHasMore(Boolean(data.pagination?.hasMore)); }
+    catch (err) { setNotice(err.message); }
+    finally { setLoadingMoreAlbums(false); }
+  }
+  async function loadMorePlaylists() {
+    if (loadingMorePlaylists || !playlistsHasMore) return;
+    setLoadingMorePlaylists(true);
+    try { const nextPage = playlistPage + 1; const data = await request(`/playlists?page=${nextPage}&limit=12`); setPlaylists(current => [...current, ...(data.playlists || [])]); setPlaylistPage(nextPage); setPlaylistsHasMore(Boolean(data.pagination?.hasMore)); }
+    catch (err) { setNotice(err.message); }
+    finally { setLoadingMorePlaylists(false); }
+  }
   async function loadMoreSongs() {
     if (loadingMoreSongs || !songsHasMore) return;
     setLoadingMoreSongs(true);
@@ -360,20 +386,23 @@ function App() {
       </section>
       {queue.length > 0 && <section className="section queue-section"><div className="section-heading"><div><span className="eyebrow">UP NEXT</span><h2>Playback Queue</h2></div><button className="text-btn" onClick={() => setQueue([])}>Clear queue</button></div><div className="queue-list">{queue.map((song, index) => <div className="queue-row" key={song._id+"-"+index}><button onClick={() => { setQueue(items => items.filter((_, itemIndex) => itemIndex !== index)); playSong(song); }}><b>{song.title}</b><small>{song.artist || "Unknown artist"}</small></button><button className="icon-btn" title="Remove from queue" onClick={() => setQueue(items => items.filter((_, itemIndex) => itemIndex !== index))}><X size={15}/></button></div>)}</div></section>}
       {recentlyPlayed.length > 0 && <section className="section recently-played-section"><div className="section-heading"><div><span className="eyebrow">PICK UP WHERE YOU LEFT OFF</span><h2>Recently Played</h2></div><button className="text-btn" onClick={() => setRecentlyPlayed([])}>Clear history</button></div><div className="song-grid">{recentlyPlayed.map(song => <article className="song-card" key={"recent-"+song._id}><button className="cover" onClick={() => song.provider === "audius" ? playSong(song) : playSong(song)}>{song.coverUrl ? <img src={song.coverUrl} alt={song.title+" artwork"}/> : <span>♫</span>}<i><Play size={20} fill="currentColor"/></i></button><div className="song-card-meta"><div><b>{song.title}</b><small>{song.artist || "Unknown artist"}</small></div></div></article>)}</div></section>}
+      {Object.keys(playStats).length > 0 && <section className="section listening-stats"><div className="section-heading"><div><span className="eyebrow">YOUR LISTENING SNAPSHOT</span><h2>Listening Stats</h2></div><button className="text-btn" onClick={() => setPlayStats({})}>Reset stats</button></div><p className="audius-note">Playback counts saved on this device.</p><div className="stats-summary"><div><b>{Object.values(playStats).reduce((total, item) => total + item.plays, 0)}</b><small>Total plays</small></div><div><b>{Object.keys(playStats).length}</b><small>Different tracks</small></div></div><div className="queue-list">{Object.values(playStats).sort((a,b) => b.plays-a.plays).slice(0,5).map((item,index) => <div className="queue-row" key={item.title+"-"+index}><span><b>{item.title}</b><small>{item.artist}</small></span><strong>{item.plays} plays</strong></div>)}</div></section>}
       <section className="section album-section"><div className="section-heading"><div><span className="eyebrow">FULL RELEASES</span><h2>Albums</h2></div><span className="muted">{savedAlbums.length} saved</span></div>{albums.length ? <div className="playlist-grid">{albums.map(album => <article className="playlist-card album-card" key={album._id}><button className="album-art" onClick={() => setSelectedCollection({type:"album",id:album._id})}>{album.coverUrl ? <img src={album.coverUrl} alt={album.title}/> : <Disc3 size={42}/>}</button><div className="playlist-title"><h3>{album.title}</h3><button className={savedAlbums.some(item => item._id === album._id) ? "like liked" : "like"} title="Save album" onClick={() => toggleAlbumSave(album)}><Heart size={17} fill={savedAlbums.some(item => item._id === album._id) ? "currentColor" : "none"}/></button></div><p>{album.artist?.artistName || album.artist?.name || "Artist"} · {album.songs?.length || 0} tracks</p><button className="outline album-open" onClick={() => setSelectedCollection({type:"album",id:album._id})}>Open album</button></article>)}</div> : <div className="audius-empty">Artist albums will appear here.</div>}</section>
+      {albumsHasMore && <div className="load-more-wrap"><button className="outline" onClick={loadMoreAlbums} disabled={loadingMoreAlbums}>{loadingMoreAlbums ? "Loading albums..." : "Load more albums"}</button></div>}
       {savedAlbums.length > 0 && <section className="section"><div className="section-heading"><div><span className="eyebrow">SAVED BY YOU</span><h2>Your Albums</h2></div></div><div className="playlist-grid">{savedAlbums.map(album => <article className="playlist-card album-card" key={"saved-"+album._id}><button className="album-art" onClick={() => setSelectedCollection({type:"album",id:album._id})}>{album.coverUrl ? <img src={album.coverUrl} alt={album.title}/> : <Disc3 size={42}/>}</button><div className="playlist-title"><h3>{album.title}</h3><button className="like liked" onClick={() => toggleAlbumSave(album)}><Heart size={17} fill="currentColor"/></button></div><p>{album.artist?.artistName || album.artist?.name || "Artist"}</p></article>)}</div></section>}
       <section className="section" id="music-library"><div className="section-heading"><div><span className="eyebrow">THE COLLECTION</span><h2>{query ? "Search results" : "Explore tracks"}</h2></div><span className="muted">{filteredSongs.length} tracks</span></div>
         {filteredSongs.length ? <div className="song-grid">{filteredSongs.map(song => <article className="song-card" key={song._id}><button className="cover" onClick={() => playSong(song)}>{song.coverUrl ? <img src={song.coverUrl} alt=""/> : <span>♫</span>}<i><Play size={20} fill="currentColor"/></i></button><div className="song-card-meta"><div><b>{song.title}</b><small>{song.artist || "Unknown artist"}</small></div><div className="song-card-actions"><button className="icon-btn" title="Play next" onClick={() => addToQueue(song)}><Plus size={17}/></button><button className={liked.includes(song._id) ? "like liked" : "like"} onClick={() => toggleLike(song)} title="Like song"><Heart size={18} fill={liked.includes(song._id) ? "currentColor" : "none"}/></button></div></div></article>)}</div> : <div className="empty-state"><div className="empty-icon"><Music2 size={30}/></div><h3>{query ? "No matching tracks" : "Your music library is ready"}</h3><p>{query ? "Try another title, artist or album." : "No tracks have been uploaded yet. Sign in as an administrator to add music you have permission to use."}</p>{isAdmin && <button className="primary" onClick={() => setShowUpload(true)}><Upload size={16}/> Upload first track</button>}</div>}
       </section>
       {songsHasMore && <div className="load-more-wrap"><button className="outline" onClick={loadMoreSongs} disabled={loadingMoreSongs}>{loadingMoreSongs ? "Loading tracks..." : "Load more tracks"}</button></div>}
       {playlists.length > 0 && <section className="section"><div className="section-heading"><div><span className="eyebrow">MADE BY YOU</span><h2>Your playlists</h2></div></div><div className="playlist-grid">{playlists.map(list => <article className="playlist-card" key={list._id}><div className="playlist-art">♫</div><div className="playlist-title"><h3>{list.name}</h3><button className="icon-btn" title="Delete playlist" onClick={() => deletePlaylist(list)}><X size={15}/></button></div><p>{list.songs.length} tracks</p><div className="playlist-track-list">{list.songs.slice(0,3).map(song => <button key={song._id} onClick={() => playSong(song)}>{song.title}</button>)}</div></article>)}</div></section>}
+      {playlistsHasMore && <div className="load-more-wrap"><button className="outline" onClick={loadMorePlaylists} disabled={loadingMorePlaylists}>{loadingMorePlaylists ? "Loading playlists..." : "Load more playlists"}</button></div>}
     </main>
 
     <footer className="player"><div className="now-playing">{activeSong ? <><div className="now-cover">{activeSong.coverUrl ? <img src={activeSong.coverUrl} alt=""/> : "♫"}</div><div className="now-meta"><b>{activeSong.title}</b><small>{activeSong.artist || "Unknown artist"}</small></div><button className={liked.includes(activeSong._id) ? "like liked" : "like"} onClick={() => toggleLike(activeSong)} title="Like track"><Heart size={17} fill={liked.includes(activeSong._id) ? "currentColor" : "none"}/></button>{user && playlists.length > 0 && <div className="player-playlist-menu"><button className="icon-btn" title="Add to playlist" onClick={() => setShowPlaylistMenu(!showPlaylistMenu)}><Plus size={17}/></button>{showPlaylistMenu && <div className="playlist-popover">{playlists.map(list => <button key={list._id} onClick={() => addToPlaylist(list)}>{list.name}</button>)}</div>}</div>}</> : <span className="muted small">Select a track to start listening</span>}</div>
       <div className="player-center"><div className="player-controls"><button className={shuffle ? "player-icon mode-active" : "player-icon"} onClick={() => setShuffle(v => !v)} title="Shuffle"><Shuffle size={16}/></button><button className="player-icon" onClick={() => stepTrack(-1)} aria-label="Previous"><SkipBack/></button><button className="play-toggle" onClick={togglePlay} aria-label={playing ? "Pause" : "Play"}>{playing ? <Pause fill="currentColor"/> : <Play fill="currentColor"/>}</button><button className="player-icon" onClick={() => stepTrack(1)} aria-label="Next"><SkipForward/></button><button className={repeatMode !== "off" ? "player-icon mode-active" : "player-icon"} onClick={() => setRepeatMode(v => v === "off" ? "all" : v === "all" ? "one" : "off")} title={"Repeat " + repeatMode}><Repeat size={16}/>{repeatMode === "one" ? "1" : ""}</button></div><div className="timeline"><span>{formatTime(progress)}</span><input aria-label="Seek" type="range" min="0" max={duration || 0} value={Math.min(progress,duration || 0)} onChange={e => { audio.current.currentTime = Number(e.target.value); setProgress(Number(e.target.value)); }}/><span>{formatTime(duration)}</span></div></div>
       <div className="player-volume"><button className="volume-mute" onClick={() => setMuted(v => !v)} title={muted ? "Unmute" : "Mute"}>{muted || volume === 0 ? <VolumeX size={18}/> : <Volume2 size={18}/>}</button><input aria-label="Volume" className="volume-range" type="range" min="0" max="1" step="0.01" value={volume} style={{"--volume": `${(muted ? 0 : volume) * 100}%`}} onChange={e => {setVolume(Number(e.target.value));setMuted(false);}}/></div>
     </footer>
-    <audio ref={audio} src={activeSong?.audioUrl || ""} onEnded={() => { if (repeatMode === "one") { audio.current.currentTime = 0; audio.current.play(); } else if (repeatMode === "off" && activeSong?.provider !== "audius" && !shuffle && songs.findIndex(song => song._id === activeSong?._id) === songs.length - 1) { setPlaying(false); } else stepTrack(1); }}/>
+    <audio ref={audio} src={activeSong?.audioUrl || ""} onPlay={() => { if (activeSong) setPlayStats(current => { const previous = current[activeSong._id] || { title: activeSong.title, artist: activeSong.artist || "Unknown artist", plays: 0 }; return { ...current, [activeSong._id]: { ...previous, plays: previous.plays + 1 } }; }); }} onEnded={() => { if (repeatMode === "one") { audio.current.currentTime = 0; audio.current.play(); } else if (repeatMode === "off" && activeSong?.provider !== "audius" && !shuffle && songs.findIndex(song => song._id === activeSong?._id) === songs.length - 1) { setPlaying(false); } else stepTrack(1); }}/>
     {showNowPlaying && activeSong && <section className="now-playing-screen" aria-label="Now playing">
       <div className="now-playing-topbar">
         <button className="np-back" onClick={() => setShowNowPlaying(false)}><X size={18}/> Back to browsing</button>
