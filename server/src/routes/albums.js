@@ -7,8 +7,15 @@ const router = Router();
 
 router.get("/", async (_req, res, next) => {
   try {
-    const albums = await Album.find().populate("artist", "name artistName").populate("songs", "title artist audioUrl coverUrl").sort({ createdAt: -1 }).limit(100);
-    res.json({ albums });
+    const paginationRequested = req.query.page !== undefined || req.query.limit !== undefined;
+    const page = Math.max(1, Number.parseInt(req.query.page, 10) || 1);
+    const limit = Math.min(50, Math.max(1, Number.parseInt(req.query.limit, 10) || 20));
+    const query = Album.find().populate("artist", "name artistName").populate("songs", "title artist audioUrl coverUrl").sort({ createdAt: -1 });
+    if (paginationRequested) query.skip((page - 1) * limit).limit(limit);
+    else query.limit(100);
+    const [albums, total] = await Promise.all([query, paginationRequested ? Album.countDocuments() : Promise.resolve(null)]);
+    if (!paginationRequested) return res.json({ albums });
+    res.json({ albums, pagination: { page, limit, total, pages: Math.ceil(total / limit), hasMore: page * limit < total } });
   } catch (error) { next(error); }
 });
 
