@@ -123,12 +123,20 @@ function App() {
   useEffect(() => { if (notice) { const timer = setTimeout(() => setNotice(""), 3500); return () => clearTimeout(timer); } }, [notice]);
 
   const filteredSongs = useMemo(() => songs.filter(song => `${song.title} ${song.artist} ${song.album}`.toLowerCase().includes(query.toLowerCase())), [songs, query]);
-  async function searchAudius() {
-    if (!query.trim()) { setNotice("Enter a song or artist to search Audius."); return; }
+  async function searchAudiusTerm(term) {
+    const searchTerm = term.trim();
+    if (!searchTerm) { setNotice("Enter a song, artist or genre to search Audius."); return; }
+    setQuery(searchTerm);
     setAudiusLoading(true);
-    try { const data = await request("/discover/search?q=" + encodeURIComponent(query.trim())); setAudiusTracks(data.tracks || []); }
-    catch (err) { setNotice(err.message); }
+    try {
+      const data = await request("/discover/search?q=" + encodeURIComponent(searchTerm));
+      setAudiusTracks(data.tracks || []);
+      if (!data.tracks?.length) setNotice("No matching tracks found. Try another search.");
+    } catch (err) { setNotice(err.message); }
     finally { setAudiusLoading(false); }
+  }
+  async function searchAudius() {
+    await searchAudiusTerm(query);
   }
   function playAudius(track) {
     playSong({ _id: "audius:" + track.id, title: track.title, artist: track.artist, album: "Audius", audioUrl: "/api/discover/" + encodeURIComponent(track.id) + "/stream", coverUrl: track.artwork, provider: "audius", sourceUrl: track.permalink });
@@ -285,6 +293,12 @@ function App() {
       <section className="section audius-section" id="audius-discovery">
         <div className="section-heading"><div><span className="eyebrow">OPEN MUSIC CATALOGUE</span><h2>Discover on Audius</h2></div><span className="source-pill">POWERED BY AUDIUS</span></div>
         <div className="discover-controls"><input className="discover-input" value={query} onChange={e => setQuery(e.target.value)} onKeyDown={e => e.key === "Enter" && searchAudius()} placeholder="Search songs, artists or genres..."/><button className="primary" onClick={searchAudius} disabled={audiusLoading}>{audiusLoading ? "Searching..." : "Search Audius"}</button></div>
+        <div className="music-category-wrap">
+          <p className="music-category-label">EXPLORE INDIAN MUSIC</p>
+          <div className="music-category-chips">
+            {["Indian Music", "Bollywood Hindi", "Haryanvi", "Punjabi", "Indian Pop", "Indian Classical", "Bhojpuri", "Tamil", "Telugu", "Malayalam", "Marathi", "Bengali"].map(category => <button key={category} className={query.toLowerCase() === category.toLowerCase() ? "music-category-chip active" : "music-category-chip"} onClick={() => searchAudiusTerm(category)} disabled={audiusLoading}>{category}</button>)}
+          </div>
+        </div>
         {audiusTracks.length ? <div className="song-grid audius-grid">{audiusTracks.map(track => <article className="song-card" key={track.id}><button className="cover" onClick={() => playAudius(track)}>{track.artwork ? <img src={track.artwork} alt={track.title + " artwork"}/> : <span>♫</span>}<i><Play size={20} fill="currentColor"/></i></button><div className="song-card-meta"><div><b>{track.title}</b><small>{track.artist}</small></div><button className="icon-btn" title="Add to Melody library" onClick={() => addAudiusToLibrary(track)}><Plus size={18}/></button></div><div className="audius-credit"><a href={track.permalink} target="_blank" rel="noreferrer">View on Audius ↗</a></div></article>)}</div> : <div className="audius-empty">{audiusLoading ? "Looking for tracks..." : "Trending tracks will appear here. Search Audius to find more music."}</div>}
         <p className="audius-note">Music streams from Audius. Availability depends on each creator’s streaming settings. Track pages open on Audius for artist and source details.</p>
       </section>
