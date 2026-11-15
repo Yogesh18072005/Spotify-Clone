@@ -6,6 +6,7 @@ A responsive music-library application built with the MERN stack: **MongoDB, Exp
 
 - Responsive React interface with local-library search and Audius music discovery
 - Audius catalogue search, trending tracks, artwork and streaming playback
+- Indian music discovery through YouTube search with the official embedded player
 - Save Audius tracks into the MongoDB-backed Melody library
 - Node.js + Express REST API
 - MongoDB models for users, songs and playlists
@@ -22,7 +23,7 @@ A responsive music-library application built with the MERN stack: **MongoDB, Exp
 - Database: MongoDB + Mongoose
 - Authentication: JSON Web Tokens + bcrypt
 - File handling: Multer (local uploads for development)
-- Music catalogue: Audius REST API (read-only search and streaming)
+- Music catalogues: Audius REST API and YouTube Data API v3 (search + official embedded playback)
 
 ## Run locally
 
@@ -48,7 +49,7 @@ PowerShell:
 Copy-Item .env.example .env
 ```
 
-Update `.env` with your MongoDB URI and a long random JWT secret. Keep this file private and never commit real credentials. Audius discovery works without a key for development; optionally set `AUDIUS_API_KEY` to use your own Audius API key for higher rate limits.
+Update `.env` with your MongoDB URI and a long random JWT secret. Keep this file private and never commit real credentials. Audius discovery works without a key for development; optionally set `AUDIUS_API_KEY` to use your own Audius API key for higher rate limits. To enable YouTube search, create a Google Cloud project, enable YouTube Data API v3, create an API key, and set `YOUTUBE_API_KEY` in `.env`. Keep the key server-side; do not add it to frontend code or commit it. The default YouTube search quota is limited (currently 100 search requests per day), and playback uses YouTube's official embedded player.
 
 ### 3. Create the administrator account
 
@@ -80,6 +81,7 @@ npm run dev
 | GET | `/api/songs` | Public | Browse/search saved tracks |
 | GET | `/api/discover/trending` | Public | Browse trending Audius tracks |
 | GET | `/api/discover/search?q=...` | Public | Search Audius tracks |
+| GET | `/api/youtube/search?q=...` | Public | Search embeddable YouTube videos (requires `YOUTUBE_API_KEY`) |
 | GET | `/api/discover/:trackId/stream` | Public | Stream an available Audius track |
 | POST | `/api/discover/import` | User | Save an Audius track to the Melody library |
 | GET | `/api/playlists` | User | List personal playlists |
@@ -116,7 +118,7 @@ Spotify-Clone/
 ## Important notes
 
 - Uploaded audio is stored locally in `server/uploads` for development. For production, use object storage and configure backups.
-- This repository does not include a commercial music catalogue or copyrighted tracks. Upload only media you have permission to distribute.
+- This repository does not include a commercial music catalogue or copyrighted tracks. Upload only media you have permission to distribute. YouTube results are played in YouTube's official embedded player; Melody does not download or extract YouTube audio.
 - Configure HTTPS, production CORS, secure secrets, persistent object storage and deployment-specific limits before public production use.
 - The older static HTML/JavaScript learning files remain in the repository; the active full-stack application runs from `client/` and `server/`.
 
