@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Home, Search, Library, Plus, Heart, Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, LogIn, LogOut, Music2, Upload, X, Disc3, Download, Shuffle, Repeat, Moon, Check, Clock, UserRoundCheck } from "lucide-react";
 import { getToken, request } from "./api";
 import { useAudioPlayer } from "./hooks/useAudioPlayer.js";
+import { useDebouncedValue } from "./hooks/useDebouncedValue.js";
 
 const formatTime = (value = 0) => {
   if (!Number.isFinite(value)) return "0:00";
@@ -38,6 +39,11 @@ function AuthModal({ mode, onClose, onSuccess, switchMode }) {
 function App() {
   const [user, setUser] = useState(null);
   const [songs, setSongs] = useState([]);
+  const [songPage, setSongPage] = useState(1);
+  const [songsHasMore, setSongsHasMore] = useState(false);
+  const [loadingMoreSongs, setLoadingMoreSongs] = useState(false);
+  const [audiusQuery, setAudiusQuery] = useState("");
+  const debouncedAudiusQuery = useDebouncedValue(audiusQuery, 350);
   const [audiusTracks, setAudiusTracks] = useState([]);
   const [audiusLoading, setAudiusLoading] = useState(false);
   const [playlists, setPlaylists] = useState([]);
@@ -71,8 +77,10 @@ function App() {
 
   async function loadLibrary() {
     try {
-      const songData = await request("/songs");
-      setSongs(songData.songs);
+      const songData = await request("/songs?page=1&limit=24");
+      setSongs(songData.songs || []);
+      setSongPage(1);
+      setSongsHasMore(Boolean(songData.pagination?.hasMore));
       const albumData = await request("/albums");
       setAlbums(albumData.albums || []);
       if (getToken()) {
@@ -100,6 +108,17 @@ function App() {
   }
   useEffect(() => { loadLibrary(); loadProfile(); }, []);
   useEffect(() => { request("/discover/trending").then(data => { setAudiusTracks(data.tracks || []); setRecommendedTracks(data.tracks || []); }).catch(() => {}); }, []);
+  useEffect(() => {
+    const term = debouncedAudiusQuery.trim();
+    if (term.length < 2) return undefined;
+    let cancelled = false;
+    setAudiusLoading(true);
+    request("/discover/search?q=" + encodeURIComponent(term))
+      .then(data => { if (!cancelled) setAudiusTracks(data.tracks || []); })
+      .catch(err => { if (!cancelled) setNotice(err.message); })
+      .finally(() => { if (!cancelled) setAudiusLoading(false); });
+    return () => { cancelled = true; };
+  }, [debouncedAudiusQuery]);
   useEffect(() => {
     if (!activeSong?.artist) return;
     let cancelled = false;
@@ -135,20 +154,23 @@ function App() {
   }, [activeSong, duration, audiusTracks, songs, shuffle]);
 
   const filteredSongs = useMemo(() => songs.filter(song => `${song.title} ${song.artist} ${song.album}`.toLowerCase().includes(query.toLowerCase())), [songs, query]);
-  async function searchAudiusTerm(term) {
+  function searchAudiusTerm(term) {
     const searchTerm = term.trim();
     if (!searchTerm) { setNotice("Enter a song, artist or genre to search Audius."); return; }
-    setQuery(searchTerm);
-    setAudiusLoading(true);
-    try {
-      const data = await request("/discover/search?q=" + encodeURIComponent(searchTerm));
-      setAudiusTracks(data.tracks || []);
-      if (!data.tracks?.length) setNotice("No matching tracks found. Try another search.");
-    } catch (err) { setNotice(err.message); }
-    finally { setAudiusLoading(false); }
+    setAudiusQuery(searchTerm);
   }
-  async function searchAudius() {
-    await searchAudiusTerm(query);
+  function searchAudius() { searchAudiusTerm(audiusQuery); }
+  async function loadMoreSongs() {
+    if (loadingMoreSongs || !songsHasMore) return;
+    setLoadingMoreSongs(true);
+    try {
+      const nextPage = songPage + 1;
+      const data = await request(`/songs?page=${nextPage}&limit=24`);
+      setSongs(current => [...current, ...(data.songs || [])]);
+      setSongPage(nextPage);
+      setSongsHasMore(Boolean(data.pagination?.hasMore));
+    } catch (err) { setNotice(err.message); }
+    finally { setLoadingMoreSongs(false); }
   }
   function playAudius(track) {
     playSong({ _id: "audius:" + track.id, title: track.title, artist: track.artist, album: "Audius", audioUrl: "/api/discover/" + encodeURIComponent(track.id) + "/stream", coverUrl: track.artwork, provider: "audius", sourceUrl: track.permalink });
@@ -307,11 +329,11 @@ function App() {
       <section className="section recommendation-section"><div className="section-heading"><div><span className="eyebrow">A LITTLE MORE TO LOVE</span><h2>Picked for you</h2></div></div>{recommendedTracks.length ? <div className="song-grid">{recommendedTracks.slice(0,6).map(track => <article className="song-card" key={"browse-"+track.id}><button className="cover" onClick={() => playAudius(track)}>{track.artwork ? <img src={track.artwork} alt={track.title + " artwork"}/> : <span>♫</span>}<i><Play size={20} fill="currentColor"/></i></button><div className="song-card-meta"><div><b>{track.title}</b><small>{track.artist}</small></div><button className="icon-btn" title="Add to library" onClick={() => addAudiusToLibrary(track)}><Plus size={17}/></button></div></article>)}</div> : <p className="muted small">Recommendations will appear as the catalogue loads.</p>}</section>
       <section className="section audius-section" id="audius-discovery">
         <div className="section-heading"><div><span className="eyebrow">OPEN MUSIC CATALOGUE</span><h2>Discover on Audius</h2></div><span className="source-pill">POWERED BY AUDIUS</span></div>
-        <div className="discover-controls"><input className="discover-input" value={query} onChange={e => setQuery(e.target.value)} onKeyDown={e => e.key === "Enter" && searchAudius()} placeholder="Search songs, artists or genres..."/><button className="primary" onClick={searchAudius} disabled={audiusLoading}>{audiusLoading ? "Searching..." : "Search Audius"}</button></div>
+        <div className="discover-controls"><input className="discover-input" value={audiusQuery} onChange={e => setAudiusQuery(e.target.value)} onKeyDown={e => e.key === "Enter" && searchAudius()} placeholder="Search songs, artists or genres..."/><button className="primary" onClick={searchAudius} disabled={audiusLoading}>{audiusLoading ? "Searching..." : "Search Audius"}</button></div>
         <div className="music-category-wrap">
           <p className="music-category-label">EXPLORE INDIAN MUSIC</p>
           <div className="music-category-chips">
-            {["Indian Music", "Bollywood Hindi", "Haryanvi", "Punjabi", "Indian Pop", "Indian Classical", "Bhojpuri", "Tamil", "Telugu", "Malayalam", "Marathi", "Bengali"].map(category => <button key={category} className={query.toLowerCase() === category.toLowerCase() ? "music-category-chip active" : "music-category-chip"} onClick={() => searchAudiusTerm(category)} disabled={audiusLoading}>{category}</button>)}
+            {["Indian Music", "Bollywood Hindi", "Haryanvi", "Punjabi", "Indian Pop", "Indian Classical", "Bhojpuri", "Tamil", "Telugu", "Malayalam", "Marathi", "Bengali"].map(category => <button key={category} className={audiusQuery.toLowerCase() === category.toLowerCase() ? "music-category-chip active" : "music-category-chip"} onClick={() => searchAudiusTerm(category)} disabled={audiusLoading}>{category}</button>)}
           </div>
         </div>
         {audiusTracks.length ? <div className="song-grid audius-grid">{audiusTracks.map(track => <article className="song-card" key={track.id}><button className="cover" onClick={() => playAudius(track)}>{track.artwork ? <img src={track.artwork} alt={track.title + " artwork"}/> : <span>♫</span>}<i><Play size={20} fill="currentColor"/></i></button><div className="song-card-meta"><div><b>{track.title}</b><small>{track.artist}</small></div><button className="icon-btn" title="Add to Melody library" onClick={() => addAudiusToLibrary(track)}><Plus size={18}/></button></div><div className="audius-credit"><a href={track.permalink} target="_blank" rel="noreferrer">View on Audius ↗</a></div></article>)}</div> : <div className="audius-empty">{audiusLoading ? "Looking for tracks..." : "Trending tracks will appear here. Search Audius to find more music."}</div>}
@@ -328,6 +350,7 @@ function App() {
       <section className="section" id="music-library"><div className="section-heading"><div><span className="eyebrow">THE COLLECTION</span><h2>{query ? "Search results" : "Explore tracks"}</h2></div><span className="muted">{filteredSongs.length} tracks</span></div>
         {filteredSongs.length ? <div className="song-grid">{filteredSongs.map(song => <article className="song-card" key={song._id}><button className="cover" onClick={() => playSong(song)}>{song.coverUrl ? <img src={song.coverUrl} alt=""/> : <span>♫</span>}<i><Play size={20} fill="currentColor"/></i></button><div className="song-card-meta"><div><b>{song.title}</b><small>{song.artist || "Unknown artist"}</small></div><button className={liked.includes(song._id) ? "like liked" : "like"} onClick={() => toggleLike(song)} title="Like song"><Heart size={18} fill={liked.includes(song._id) ? "currentColor" : "none"}/></button></div></article>)}</div> : <div className="empty-state"><div className="empty-icon"><Music2 size={30}/></div><h3>{query ? "No matching tracks" : "Your music library is ready"}</h3><p>{query ? "Try another title, artist or album." : "No tracks have been uploaded yet. Sign in as an administrator to add music you have permission to use."}</p>{isAdmin && <button className="primary" onClick={() => setShowUpload(true)}><Upload size={16}/> Upload first track</button>}</div>}
       </section>
+      {songsHasMore && <div className="load-more-wrap"><button className="outline" onClick={loadMoreSongs} disabled={loadingMoreSongs}>{loadingMoreSongs ? "Loading tracks..." : "Load more tracks"}</button></div>}
       {playlists.length > 0 && <section className="section"><div className="section-heading"><div><span className="eyebrow">MADE BY YOU</span><h2>Your playlists</h2></div></div><div className="playlist-grid">{playlists.map(list => <article className="playlist-card" key={list._id}><div className="playlist-art">♫</div><div className="playlist-title"><h3>{list.name}</h3><button className="icon-btn" title="Delete playlist" onClick={() => deletePlaylist(list)}><X size={15}/></button></div><p>{list.songs.length} tracks</p><div className="playlist-track-list">{list.songs.slice(0,3).map(song => <button key={song._id} onClick={() => playSong(song)}>{song.title}</button>)}</div></article>)}</div></section>}
     </main>
 
