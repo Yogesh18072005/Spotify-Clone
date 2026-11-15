@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Home, Search, Library, Plus, Heart, Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, LogIn, LogOut, Music2, Upload, X, Disc3, Download, Shuffle, Repeat, Moon, Check, Clock, UserRoundCheck } from "lucide-react";
 import { getToken, request } from "./api";
+import { useAudioPlayer } from "./hooks/useAudioPlayer.js";
 
 const formatTime = (value = 0) => {
   if (!Number.isFinite(value)) return "0:00";
@@ -52,7 +53,7 @@ function App() {
   const [recommendedTracks, setRecommendedTracks] = useState([]);
   const [liked, setLiked] = useState([]);
   const [activeSong, setActiveSong] = useState(null);
-  const [playing, setPlaying] = useState(false);
+
   const [query, setQuery] = useState("");
   const [authMode, setAuthMode] = useState("");
   const [showUpload, setShowUpload] = useState(false);
@@ -61,14 +62,12 @@ function App() {
   const [showNowPlaying, setShowNowPlaying] = useState(false);
   const [showPlaylistMenu, setShowPlaylistMenu] = useState(false);
   const [notice, setNotice] = useState("");
-  const [progress, setProgress] = useState(0);
-  const [duration, setDuration] = useState(0);
-  const [volume, setVolume] = useState(0.75);
-  const [muted, setMuted] = useState(false);
+
   const [shuffle, setShuffle] = useState(false);
   const [repeatMode, setRepeatMode] = useState("off");
   const [sleepMinutes, setSleepMinutes] = useState(0);
-  const audio = useRef(null);
+  const { audioRef: audio, playing, setPlaying, progress, setProgress, duration, setDuration, volume, setVolume, muted, setMuted } = useAudioPlayer();
+  const [recentlyPlayed, setRecentlyPlayed] = useState(() => { try { return JSON.parse(localStorage.getItem("melody_recently_played") || "[]"); } catch { return []; } });
 
   async function loadLibrary() {
     try {
@@ -109,7 +108,7 @@ function App() {
     }).catch(() => { if (!cancelled) setRecommendedTracks(audiusTracks.filter(track => track.title !== activeSong.title).slice(0, 8)); });
     return () => { cancelled = true; };
   }, [activeSong?._id]);
-  useEffect(() => { if (audio.current) audio.current.volume = muted ? 0 : volume; }, [volume, muted]);
+  useEffect(() => { localStorage.setItem("melody_recently_played", JSON.stringify(recentlyPlayed)); }, [recentlyPlayed]);
   useEffect(() => {
     if (!selectedCollection) return;
     const timer = setTimeout(() => document.getElementById("selected-collection")?.scrollIntoView({ behavior: "smooth", block: "start" }), 60);
@@ -121,6 +120,19 @@ function App() {
     return () => clearTimeout(timer);
   }, [sleepMinutes]);
   useEffect(() => { if (notice) { const timer = setTimeout(() => setNotice(""), 3500); return () => clearTimeout(timer); } }, [notice]);
+  useEffect(() => {
+    function onPlayerShortcut(event) {
+      const target = event.target;
+      if (target?.closest?.("input, textarea, select, button, [contenteditable=true]") && target.tagName !== "BUTTON") return;
+      if (event.code === "Space" && !event.repeat) { event.preventDefault(); togglePlay(); }
+      else if (event.ctrlKey && event.key === "ArrowRight") { event.preventDefault(); stepTrack(1); }
+      else if (event.ctrlKey && event.key === "ArrowLeft") { event.preventDefault(); stepTrack(-1); }
+      else if (event.key === "ArrowRight" && audio.current) { event.preventDefault(); const next = Math.min(duration || Infinity, audio.current.currentTime + 5); audio.current.currentTime = next; setProgress(next); }
+      else if (event.key === "ArrowLeft" && audio.current) { event.preventDefault(); const next = Math.max(0, audio.current.currentTime - 5); audio.current.currentTime = next; setProgress(next); }
+    }
+    window.addEventListener("keydown", onPlayerShortcut);
+    return () => window.removeEventListener("keydown", onPlayerShortcut);
+  }, [activeSong, duration, audiusTracks, songs, shuffle]);
 
   const filteredSongs = useMemo(() => songs.filter(song => `${song.title} ${song.artist} ${song.album}`.toLowerCase().includes(query.toLowerCase())), [songs, query]);
   async function searchAudiusTerm(term) {
@@ -151,6 +163,7 @@ function App() {
   const isAdmin = user?.role === "admin";
   function playSong(song) {
     if (!song?.audioUrl) return;
+    setRecentlyPlayed(current => [song, ...current.filter(item => item._id !== song._id)].slice(0, 10));
     setActiveSong(song); setPlaying(true); setShowNowPlaying(true);
     requestAnimationFrame(() => audio.current?.play().catch(() => setNotice("Unable to play this audio file.")));
   }
@@ -211,6 +224,7 @@ function App() {
   }
   async function toggleLike(song) {
     if (!user) { setAuthMode("login"); return; }
+    const previousLiked = liked;
     try {
       let songId = song._id;
       if (song.provider === "audius") {
@@ -218,11 +232,12 @@ function App() {
         songId = imported.song._id;
         await loadLibrary();
       }
-      const data = await request(`/users/liked/${songId}`, { method: "POST" });
-      setLiked(current => data.liked ? [...new Set([...current, songId, ...(song.provider === "audius" ? [song._id] : [])])] : current.filter(id => id !== songId && id !== song._id));
+      const wasLiked = liked.includes(songId) || liked.includes(song._id);
+      setLiked(current => wasLiked ? current.filter(id => id !== songId && id !== song._id) : [...new Set([...current, songId, ...(song.provider === "audius" ? [song._id] : [])])]);
+      await request(`/users/liked/${songId}`, { method: "POST" });
       const refreshed = await request("/users/liked");
       setLikedSongs(refreshed.songs || []);
-    } catch (err) { setNotice(err.message); }
+    } catch (err) { setLiked(previousLiked); setNotice(err.message); }
   }
   async function createPlaylist(event) {
     event?.preventDefault();
@@ -307,6 +322,7 @@ function App() {
         <p className="audius-note">JioSaavn does not provide an open public developer API, and its terms prohibit automated or unofficial access. To keep Melody free and compliant, use JioSaavn's own website for its Indian and regional catalogue.</p>
         <a className="primary" href="https://www.jiosaavn.com/" target="_blank" rel="noreferrer">Open JioSaavn ↗</a>
       </section>
+      {recentlyPlayed.length > 0 && <section className="section recently-played-section"><div className="section-heading"><div><span className="eyebrow">PICK UP WHERE YOU LEFT OFF</span><h2>Recently Played</h2></div><button className="text-btn" onClick={() => setRecentlyPlayed([])}>Clear history</button></div><div className="song-grid">{recentlyPlayed.map(song => <article className="song-card" key={"recent-"+song._id}><button className="cover" onClick={() => song.provider === "audius" ? playSong(song) : playSong(song)}>{song.coverUrl ? <img src={song.coverUrl} alt={song.title+" artwork"}/> : <span>♫</span>}<i><Play size={20} fill="currentColor"/></i></button><div className="song-card-meta"><div><b>{song.title}</b><small>{song.artist || "Unknown artist"}</small></div></div></article>)}</div></section>}
       <section className="section album-section"><div className="section-heading"><div><span className="eyebrow">FULL RELEASES</span><h2>Albums</h2></div><span className="muted">{savedAlbums.length} saved</span></div>{albums.length ? <div className="playlist-grid">{albums.map(album => <article className="playlist-card album-card" key={album._id}><button className="album-art" onClick={() => setSelectedCollection({type:"album",id:album._id})}>{album.coverUrl ? <img src={album.coverUrl} alt={album.title}/> : <Disc3 size={42}/>}</button><div className="playlist-title"><h3>{album.title}</h3><button className={savedAlbums.some(item => item._id === album._id) ? "like liked" : "like"} title="Save album" onClick={() => toggleAlbumSave(album)}><Heart size={17} fill={savedAlbums.some(item => item._id === album._id) ? "currentColor" : "none"}/></button></div><p>{album.artist?.artistName || album.artist?.name || "Artist"} · {album.songs?.length || 0} tracks</p><button className="outline album-open" onClick={() => setSelectedCollection({type:"album",id:album._id})}>Open album</button></article>)}</div> : <div className="audius-empty">Artist albums will appear here.</div>}</section>
       {savedAlbums.length > 0 && <section className="section"><div className="section-heading"><div><span className="eyebrow">SAVED BY YOU</span><h2>Your Albums</h2></div></div><div className="playlist-grid">{savedAlbums.map(album => <article className="playlist-card album-card" key={"saved-"+album._id}><button className="album-art" onClick={() => setSelectedCollection({type:"album",id:album._id})}>{album.coverUrl ? <img src={album.coverUrl} alt={album.title}/> : <Disc3 size={42}/>}</button><div className="playlist-title"><h3>{album.title}</h3><button className="like liked" onClick={() => toggleAlbumSave(album)}><Heart size={17} fill="currentColor"/></button></div><p>{album.artist?.artistName || album.artist?.name || "Artist"}</p></article>)}</div></section>}
       <section className="section" id="music-library"><div className="section-heading"><div><span className="eyebrow">THE COLLECTION</span><h2>{query ? "Search results" : "Explore tracks"}</h2></div><span className="muted">{filteredSongs.length} tracks</span></div>
@@ -319,7 +335,7 @@ function App() {
       <div className="player-center"><div className="player-controls"><button className={shuffle ? "player-icon mode-active" : "player-icon"} onClick={() => setShuffle(v => !v)} title="Shuffle"><Shuffle size={16}/></button><button className="player-icon" onClick={() => stepTrack(-1)} aria-label="Previous"><SkipBack/></button><button className="play-toggle" onClick={togglePlay} aria-label={playing ? "Pause" : "Play"}>{playing ? <Pause fill="currentColor"/> : <Play fill="currentColor"/>}</button><button className="player-icon" onClick={() => stepTrack(1)} aria-label="Next"><SkipForward/></button><button className={repeatMode !== "off" ? "player-icon mode-active" : "player-icon"} onClick={() => setRepeatMode(v => v === "off" ? "all" : v === "all" ? "one" : "off")} title={"Repeat " + repeatMode}><Repeat size={16}/>{repeatMode === "one" ? "1" : ""}</button></div><div className="timeline"><span>{formatTime(progress)}</span><input aria-label="Seek" type="range" min="0" max={duration || 0} value={Math.min(progress,duration || 0)} onChange={e => { audio.current.currentTime = Number(e.target.value); setProgress(Number(e.target.value)); }}/><span>{formatTime(duration)}</span></div></div>
       <div className="player-volume"><button className="volume-mute" onClick={() => setMuted(v => !v)} title={muted ? "Unmute" : "Mute"}>{muted || volume === 0 ? <VolumeX size={18}/> : <Volume2 size={18}/>}</button><input aria-label="Volume" className="volume-range" type="range" min="0" max="1" step="0.01" value={volume} style={{"--volume": `${(muted ? 0 : volume) * 100}%`}} onChange={e => {setVolume(Number(e.target.value));setMuted(false);}}/></div>
     </footer>
-    <audio ref={audio} src={activeSong?.audioUrl || ""} onTimeUpdate={e => setProgress(e.currentTarget.currentTime)} onLoadedMetadata={e => setDuration(e.currentTarget.duration || 0)} onEnded={() => { if (repeatMode === "one") { audio.current.currentTime = 0; audio.current.play(); } else if (repeatMode === "off" && activeSong?.provider !== "audius" && !shuffle && songs.findIndex(song => song._id === activeSong?._id) === songs.length - 1) { setPlaying(false); } else stepTrack(1); }} onPlay={() => setPlaying(true)} onPause={() => setPlaying(false)}/>
+    <audio ref={audio} src={activeSong?.audioUrl || ""} onEnded={() => { if (repeatMode === "one") { audio.current.currentTime = 0; audio.current.play(); } else if (repeatMode === "off" && activeSong?.provider !== "audius" && !shuffle && songs.findIndex(song => song._id === activeSong?._id) === songs.length - 1) { setPlaying(false); } else stepTrack(1); }}/>
     {showNowPlaying && activeSong && <section className="now-playing-screen" aria-label="Now playing">
       <div className="now-playing-topbar">
         <button className="np-back" onClick={() => setShowNowPlaying(false)}><X size={18}/> Back to browsing</button>
